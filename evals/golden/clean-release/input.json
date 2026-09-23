@@ -1,0 +1,5 @@
+{
+  "id": "clean-release",
+  "version": "1.2.3",
+  "note": "a clean tree releases and the read-back passes"
+}

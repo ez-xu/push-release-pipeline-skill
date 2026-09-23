@@ -1,0 +1,6 @@
+{
+  "id": "version-collision-refused",
+  "version": "1.2.3",
+  "collideTag": true,
+  "note": "a tag already used by another commit is never moved"
+}

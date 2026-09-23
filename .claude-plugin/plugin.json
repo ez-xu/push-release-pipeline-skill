@@ -1,0 +1,8 @@
+{
+  "name": "push-release-pipeline-skill",
+  "version": "1.0.0",
+  "description": "Turn a local git push into a release whose artifact is provably built from the commit that was pushed.",
+  "author": {
+    "name": "Jinghan Xu"
+  }
+}

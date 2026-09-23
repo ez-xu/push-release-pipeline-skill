@@ -1,0 +1,39 @@
+{
+  "scenario": "clean-release",
+  "exitCode": 0,
+  "refused": false,
+  "published": true,
+  "readBackVerdict": "pass",
+  "refusalReason": "",
+  "rollback": "not-needed",
+  "tagRemains": true,
+  "releaseRemains": true,
+  "checks": {
+    "closedLoopConsistent": true,
+    "noOrphanTag": true,
+    "provenanceComplete": true
+  },
+  "transcriptTail": [
+    "[ok]  release interface  gitlab: 5 readiness checks passed",
+    "  [ok]  preconditions  main -> gitlab via glab",
+    "  [ok]  clean tree  no uncommitted changes",
+    "  [ok]  identity snapshot (before)  HEAD 6b46d3ae0e10",
+    "  [ok]  clean build  0s",
+    "  [ok]  identity snapshot (after)  identical to before the build",
+    "  [ok]  time guard  no tracked file was written during the build",
+    "  [ok]  config stability  .ci/config.json unchanged by the build",
+    "  [ok]  artifact located  app_V1.2.3.bin -> version 1.2.3",
+    " [skip] version cross-check  artifact.embeddedVersion is not configured; only the file name was checked",
+    "  [ok]  tag occupancy  V1.2.3 is free",
+    "  [ok]  artifact hash  121f877165745d7a...  71 bytes",
+    "  [ok]  create tag  V1.2.3 -> 6b46d3ae0e10",
+    "  [ok]  push tag  refs/tags/V1.2.3 -> origin",
+    "  [ok]  remote tag check  remote tag resolves to 6b46d3ae0e10",
+    "  [ok]  create release  V1.2.3 on gitlab",
+    "  [ok]  closed-loop read-back  remote tag -> 6b46d3ae0e10; downloaded asset matches the build byte for byte",
+    "",
+    "Released V1.2.3 from 6b46d3ae0e10 with app_V1.2.3.bin",
+    "  sha256 121f877165745d7aff3964416e8d05b3b1464b6bffcae691f04b971e58473848",
+    "  output C:\\Users\\15854\\AppData\\Local\\Temp\\prp-eval-ba_3ze1v\\repo\\.ci\\out\\20260923T095145Z"
+  ]
+}

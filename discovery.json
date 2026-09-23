@@ -1,0 +1,254 @@
+{
+  "question": "Is the artifact published under a given tag provably the one that was built from the commit that tag points at?",
+  "trigger": [
+    "A developer pushes a commit to the repository's release branch",
+    "A firmware or binary release must be traceable back to the exact commit that produced it",
+    "A previously published tag has to be re-verified without rebuilding"
+  ],
+  "decision": [
+    "Publish the artifact as a release under the version tag",
+    "Refuse the release and raise the version, or fix the tree, before pushing again",
+    "Roll back a partial publication when the closed-loop check does not pass"
+  ],
+  "evidence": [
+    "git HEAD, HEAD tree, tracked-file manifest and work-tree status captured before and after the build",
+    "The produced artifact's file name and its own PE version resource",
+    "The commit that the remote tag resolves to, read at verification time",
+    "The SHA-256 of the release asset downloaded back from the provider"
+  ],
+  "success_measure": "Every published tag satisfies all three conditions at once: the tag resolves to the pushed HEAD, the artifact was built from that commit with zero tracked-file modification during the build, and the asset downloaded back from the release is byte-identical to the local artifact.",
+  "outcome": "A published release whose artifact, tag and source commit are provably the same thing, or a named refusal that published nothing.",
+  "intended_users": [
+    "Firmware and application developers",
+    "Release owners",
+    "Field delivery and commissioning engineers"
+  ],
+  "input_types": [
+    "a git work tree",
+    "a build command or toolchain",
+    "a version embedded in the artifact file name",
+    "release-provider credentials"
+  ],
+  "output_artifacts": [
+    "a tag and release on the configured remote",
+    "the released binary asset",
+    ".ci/out/<run>/manifest.json, release-notes.md and build.log"
+  ],
+  "use_cases": [
+    "push-triggered automatic release",
+    "release rehearsal with --dry-run",
+    "re-verification of an already published release",
+    "refusal diagnosis when a version is already taken"
+  ],
+  "examples": [
+    {
+      "invocation": "/push-release-pipeline-skill setup --repo . --install-hook",
+      "description": "Adopt the pipeline into the current repository and arm the pre-push hook"
+    },
+    {
+      "invocation": "/push-release-pipeline-skill release --dry-run",
+      "description": "Rehearse the whole pipeline without tagging or publishing"
+    },
+    {
+      "invocation": "/push-release-pipeline-skill verify --tag V1.0.14.631",
+      "description": "Re-check that a published release still matches its build"
+    }
+  ],
+  "permissions_systems": [
+    "Read the local git work tree and its remote configuration",
+    "Run the project's configured build commands",
+    "Create and push git tags to the configured remote",
+    "Create releases and upload assets through the glab or gh CLI",
+    "Download a release asset back for verification",
+    "Delete a tag and release that this run created, when verification fails"
+  ],
+  "typical_completion_time": "one full clean build of the project, plus under a minute for the release steps",
+  "compatibility": {
+    "declared": [
+      "claude-code",
+      "codex",
+      "cursor",
+      "copilot",
+      "gemini",
+      "opencode",
+      "cline"
+    ],
+    "certified": []
+  },
+  "environment": {
+    "documentation_sources": [
+      "https://git-scm.com/docs/githooks#_pre_push",
+      "https://docs.gitlab.com/ee/api/releases/",
+      "https://cli.github.com/manual/gh_release_create"
+    ],
+    "data_sources": [
+      "the local git repository",
+      "the GitLab or GitHub release API through glab or gh"
+    ],
+    "required_capabilities": [
+      "git 2.40+",
+      "python 3.9+ with the standard library only",
+      "glab for GitLab remotes or gh for GitHub remotes, authenticated",
+      "the project's own build toolchain"
+    ],
+    "readiness_checks": [
+      "git rev-parse --show-toplevel succeeds in the target directory",
+      "the release CLI for the detected provider is on PATH and reports an authenticated session",
+      "the configured output directory is git-ignored",
+      "exactly one artifact matches artifact.glob after a build"
+    ]
+  },
+  "risk": {
+    "tier": "high",
+    "permissions": [
+      "Create and push git tags",
+      "Create releases and upload assets on the configured remote",
+      "Delete the tag and release created by the current run when verification fails",
+      "Run arbitrary configured build commands"
+    ],
+    "mutation_boundary": "approval-required",
+    "mutation_scope": "writes only tags and releases on the configured remote, plus .ci/ inside the repository; it never modifies tracked source files",
+    "approval_required": [
+      "A human installs the pre-push hook explicitly with setup --install-hook",
+      "A human reviews and commits .ci/config.json before the first automatic release",
+      "verify.rollbackOnFailure may delete the tag and release created by the failing run"
+    ]
+  },
+  "software_mutation": {
+    "applies": true,
+    "affected_structures": [
+      ".ci/config.json, the persisted pipeline configuration",
+      ".ci/hooks/pre-push, the installed git hook",
+      ".ci/lib/, the vendored runtime copied into the repository",
+      ".ci/out/<run>/manifest.json, the per-run provenance record"
+    ],
+    "invariants": [
+      "A published tag never moves to a different commit",
+      "The artifact attached to a release is byte-identical to the locally built artifact",
+      "HEAD, HEAD tree, tracked-file manifest and work-tree status are identical before and after the build",
+      "tag.template contains the {version} placeholder",
+      "Exactly one artifact matches artifact.glob"
+    ],
+    "sources_of_truth": [
+      "commit identity: git rev-parse HEAD and HEAD^{tree}",
+      "artifact version: the produced artifact's file name, cross-checked against its own PE version resource",
+      "tag occupancy: the peeled remote tag listing from git ls-remote",
+      "run outcome: .ci/out/<run>/manifest.json"
+    ],
+    "invalid_states_prevented": [
+      "a tag pointing at a commit other than the one that was built",
+      "a release whose asset differs from the built artifact",
+      "a build that mutates tracked files while a release is being prepared",
+      "two different artifacts claiming the same version tag",
+      "a release left half-published after a verification failure"
+    ],
+    "state_transitions": [
+      "no tag -> tag created locally -> tag pushed -> remote tag confirmed -> release created -> asset re-downloaded -> published",
+      "any failure after the tag exists -> release deleted, remote tag deleted, local tag deleted -> no tag"
+    ]
+  },
+  "data_interfaces": {
+    "applies": true,
+    "interface_types": [
+      "api",
+      "structured-file"
+    ],
+    "authoritative_sources": [
+      "GitLab Releases API as exposed by glab 1.52 (https://docs.gitlab.com/ee/api/releases/)",
+      "GitHub Releases API as exposed by gh 2.96 (https://cli.github.com/manual/gh_release_create)",
+      "git plumbing documentation for rev-parse, ls-files, ls-remote and check-ignore",
+      "the .ci/config.json schema authored by this skill"
+    ],
+    "entities": [
+      "Commit",
+      "Tree",
+      "Tag",
+      "Release",
+      "ReleaseAsset",
+      "BuildArtifact",
+      "PipelineConfig",
+      "RunRecord"
+    ],
+    "identifiers": [
+      "commit SHA",
+      "tree SHA",
+      "tag name",
+      "release tag name",
+      "artifact file name",
+      "artifact SHA-256"
+    ],
+    "relationships": [
+      "One tag resolves to exactly one commit",
+      "One release belongs to exactly one tag",
+      "One release carries one or more assets",
+      "One artifact is produced by exactly one commit"
+    ],
+    "field_semantics": [
+      "the tag name is the version string taken from the artifact file name, formatted by the configured template",
+      "the artifact SHA-256 is computed over the exact bytes of the build output",
+      "the commit SHA identifies the source revision the artifact was built from"
+    ],
+    "invariants": [
+      "A published tag never moves to a different commit",
+      "The asset attached to a release is byte-identical to the locally built artifact",
+      "Every remote read happens at verification time and is never cached across a build"
+    ],
+    "freshness_and_pagination": [
+      "The remote tag listing is re-read after the push and again during read-back",
+      "Release asset listings are paged by the provider CLI; the skill requests one named asset and retries with backoff while it becomes available"
+    ],
+    "nullability": [
+      "An unauthenticated release CLI blocks publishing before the build starts",
+      "A missing or ambiguous artifact match blocks the run",
+      "An artifact with no PE version resource skips only the embedded cross-check, and says so"
+    ],
+    "readiness_checks": [
+      "git work tree with a configured remote",
+      "the provider CLI is present, authenticated, and exposes the release download operation the read-back depends on",
+      "exactly one artifact matches artifact.glob after the build"
+    ]
+  },
+  "semantic_recon": {
+    "applies": true,
+    "contract_id": "release_api",
+    "contract_path": "contracts/data_contract_release_api",
+    "target_type": "DATA_API",
+    "required_operations": [
+      "create release with one named asset",
+      "download a named release asset back",
+      "delete a release and its tag during rollback"
+    ],
+    "freshness_check": "contract_health.report() is called before the build; a not-usable report is a safe stop",
+    "sources": [
+      {
+        "id": "release-api",
+        "type": "api",
+        "reuse": "recurring",
+        "impact": "high",
+        "contract_id": "release_api",
+        "contract_path": "contracts/data_contract_release_api"
+      }
+    ]
+  },
+  "semantic_contract": {
+    "applies": false
+  },
+  "routing_tests": {
+    "should_trigger": [
+      "本地推送自动编译发布",
+      "让每次推送自动编译、打标签、发固件",
+      "我要保证发布的标签和固件是同一次提交编出来的",
+      "set up a push-triggered release pipeline for this repo",
+      "verify that a published release still matches its build",
+      "the tag and the firmware must never disagree"
+    ],
+    "should_not_trigger": [
+      "publish this release by hand right now",
+      "what should the next version number be",
+      "delete the V1.0.13 release",
+      "fix the compile error in mainwindow.cpp",
+      "compare these two source folders"
+    ]
+  },
+  "support_tier": "supported"
+}

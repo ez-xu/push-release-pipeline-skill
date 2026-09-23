@@ -1,0 +1,30 @@
+{
+  "scenario": "version-collision-refused",
+  "exitCode": 2,
+  "refused": true,
+  "published": false,
+  "readBackVerdict": "not run",
+  "refusalReason": "REFUSED: tag V1.2.3 already exists at a different commit (local 167445581c7f, remote 167445581c7f), but this build is from 52e9171980ff. A published tag is never moved. Raise the version in the build system and push again.",
+  "rollback": "not-needed",
+  "tagRemains": true,
+  "releaseRemains": false,
+  "checks": {
+    "closedLoopConsistent": true,
+    "noOrphanTag": true,
+    "provenanceComplete": true
+  },
+  "transcriptTail": [
+    "[ok]  release interface  gitlab: 5 readiness checks passed",
+    "  [ok]  preconditions  main -> gitlab via glab",
+    "  [ok]  clean tree  no uncommitted changes",
+    "  [ok]  identity snapshot (before)  HEAD 52e9171980ff",
+    "  [ok]  clean build  0s",
+    "  [ok]  identity snapshot (after)  identical to before the build",
+    "  [ok]  time guard  no tracked file was written during the build",
+    "  [ok]  config stability  .ci/config.json unchanged by the build",
+    "  [ok]  artifact located  app_V1.2.3.bin -> version 1.2.3",
+    " [skip] version cross-check  artifact.embeddedVersion is not configured; only the file name was checked",
+    "",
+    "REFUSED: tag V1.2.3 already exists at a different commit (local 167445581c7f, remote 167445581c7f), but this build is from 52e9171980ff. A published tag is never moved. Raise the version in the build system and push again."
+  ]
+}

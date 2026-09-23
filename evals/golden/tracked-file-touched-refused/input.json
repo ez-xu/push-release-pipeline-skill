@@ -1,0 +1,6 @@
+{
+  "id": "tracked-file-touched-refused",
+  "version": "1.2.3",
+  "touchTracked": true,
+  "note": "a build that rewrites a tracked file is refused even when the content is identical"
+}

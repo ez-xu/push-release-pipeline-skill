@@ -1,0 +1,378 @@
+{
+  "artifacts": [
+    {
+      "id": "claude_plugin_marketplace_json",
+      "path": ".claude-plugin/marketplace.json",
+      "sha256": "e5e4eb647020b477c7e91538a0b63cbfacdf6438ecea4d04a38d7afd896b108e",
+      "type": "package_file"
+    },
+    {
+      "id": "claude_plugin_plugin_json",
+      "path": ".claude-plugin/plugin.json",
+      "sha256": "bdd40744bde348b616386d6b6bfbd05db0be7df8ccc09d7bb78461f76e3a1bd2",
+      "type": "package_file"
+    },
+    {
+      "id": "agents_document",
+      "path": "AGENTS.md",
+      "sha256": "662fe2b0e1a98be4dfd0d07e5bebd9abf79746ac5f8ae46cb8c528c1ed407117",
+      "type": "companion_instruction"
+    },
+    {
+      "id": "contracts_data_contract_release_api_contract_id",
+      "path": "contracts/data_contract_release_api/.contract_id",
+      "sha256": "2f384ffb469617bbe35989750237892e4297bef233224f0459edee6069005b54",
+      "type": "package_file"
+    },
+    {
+      "id": "contracts_data_contract_release_api_code_contract_health_py",
+      "path": "contracts/data_contract_release_api/code/contract_health.py",
+      "sha256": "d0cbfc12a9ac67c02fe80075a4a0a1f428110f5666358b660a8efa17e577bbec",
+      "type": "package_file"
+    },
+    {
+      "id": "discovery_json",
+      "path": "discovery.json",
+      "sha256": "8b9c99c7f67d9056d7818ed8a8d17e36d0ba4e1701ddd1d39596e2df05b027ad",
+      "type": "package_file"
+    },
+    {
+      "id": "clean_release_expected",
+      "path": "evals/golden/clean-release/expected.json",
+      "sha256": "95a5abc17b14c5f466f135217d03aad93a50fa725c2a76c9312c05f18723542e",
+      "type": "expected_output"
+    },
+    {
+      "id": "clean_release_input",
+      "path": "evals/golden/clean-release/input.json",
+      "sha256": "3d4f76551d2a2a6d1612fb3b0b02a2939a0982dab0dd688672345268a89f682f",
+      "type": "golden_input"
+    },
+    {
+      "id": "corrupted_upload_rolled_back_input",
+      "path": "evals/golden/corrupted-upload-rolled-back/input.json",
+      "sha256": "79ffd516831d2b39554592d0b88f2087fa55f6d23c99a81226cb06c64c8d68a0",
+      "type": "golden_input"
+    },
+    {
+      "id": "dirty_tree_refused_expected",
+      "path": "evals/golden/dirty-tree-refused/expected.json",
+      "sha256": "1cc2fca5c96c2e9ab9214a82bfa9537faaf6fd295784b190b3293fbab86152cf",
+      "type": "expected_output"
+    },
+    {
+      "id": "dirty_tree_refused_input",
+      "path": "evals/golden/dirty-tree-refused/input.json",
+      "sha256": "2ea273e547024f02b3cd6b2ba604d3e0d0ad7e32b7edfe62315854a2d684c31e",
+      "type": "golden_input"
+    },
+    {
+      "id": "tracked_file_touched_refused_expected",
+      "path": "evals/golden/tracked-file-touched-refused/expected.json",
+      "sha256": "9b076d38353a4f8fe688bd100682a4c86b4ad8079fcdfd631d996c016048baf9",
+      "type": "expected_output"
+    },
+    {
+      "id": "tracked_file_touched_refused_input",
+      "path": "evals/golden/tracked-file-touched-refused/input.json",
+      "sha256": "646ed627773f2c283293baf4f379409012970f50955dad56fc6b261e1e624e46",
+      "type": "golden_input"
+    },
+    {
+      "id": "version_collision_refused_expected",
+      "path": "evals/golden/version-collision-refused/expected.json",
+      "sha256": "a421f0d283501f725c3750830611d0bc31c32e5ac12ee35c4f0e20dc8ae434a3",
+      "type": "expected_output"
+    },
+    {
+      "id": "version_collision_refused_input",
+      "path": "evals/golden/version-collision-refused/input.json",
+      "sha256": "83f2d28129166f5282186a078f6c8355113e1edaee37a8c4cb25cfd0968f3213",
+      "type": "golden_input"
+    },
+    {
+      "id": "evals_push_release_pipeline_eval_md",
+      "path": "evals/push-release-pipeline.eval.md",
+      "sha256": "384a25ce19b28029e678c75f1bcffce0d9f4ef905ebd926194e4e16419410324",
+      "type": "eval_spec"
+    },
+    {
+      "id": "install_ps1",
+      "path": "install.ps1",
+      "sha256": "325b1f7c3d31316a39b2d742f921699b3c803941a73e9cd19459ebaa21bdf58b",
+      "type": "package_file"
+    },
+    {
+      "id": "install_sh",
+      "path": "install.sh",
+      "sha256": "b11dd5e1b3d821ea5a8dc7d35b42ef460fdc6f261f0dc7079147a10e9b7b3ce3",
+      "type": "package_file"
+    },
+    {
+      "id": "interview_json",
+      "path": "interview.json",
+      "sha256": "555027a1fe00742cfc09337fe5455f5e88fbf45f173dfa4b50be4625ae4825b0",
+      "type": "package_file"
+    },
+    {
+      "id": "readme_md",
+      "path": "README.md",
+      "sha256": "bbccd43b8c5bbe3b87cc99636bc4ae691892baa9cc32c36cf487f160701ccd13",
+      "type": "package_file"
+    },
+    {
+      "id": "references_config_reference_md",
+      "path": "references/config-reference.md",
+      "sha256": "9d91e4ac1e30a9a9cf45f919b851715ebffee2245abe433dbba6addc9aaae0c1",
+      "type": "reference"
+    },
+    {
+      "id": "references_gates_md",
+      "path": "references/gates.md",
+      "sha256": "454e617246289657cf0c519925e7c76b92ecdfa6d14625914d36a5ec61275892",
+      "type": "reference"
+    },
+    {
+      "id": "references_team_adoption_md",
+      "path": "references/team-adoption.md",
+      "sha256": "7c8932b3b2eceb63be934e7f56f4ca33ab2b065894f3f0102f320c482ac0f3f1",
+      "type": "reference"
+    },
+    {
+      "id": "scripts_dependency_health_py",
+      "path": "scripts/dependency_health.py",
+      "sha256": "3de37f80d22b798b34fe9b6d59d3ee3c81b31f431c4453f836b9f3f6172db72c",
+      "type": "script"
+    },
+    {
+      "id": "scripts_eval_check_py",
+      "path": "scripts/eval_check.py",
+      "sha256": "6c2924cdf1e8caa245694037f6ac201015b2495a26cf09960c2050aefee35de1",
+      "type": "script"
+    },
+    {
+      "id": "scripts_eval_harness_py",
+      "path": "scripts/eval_harness.py",
+      "sha256": "f77c4a06c2316209d8c4e59e874bd84e161e5152ff2523c3eaf22f698bef33b2",
+      "type": "script"
+    },
+    {
+      "id": "scripts_evolve_py",
+      "path": "scripts/evolve.py",
+      "sha256": "76dd0787a84f23adb42516dafca5cf2733c9c88c8039c655c9f3f332d64c5840",
+      "type": "script"
+    },
+    {
+      "id": "scripts_prp_build_py",
+      "path": "scripts/prp_build.py",
+      "sha256": "987cf82876118d9effa7045e1640aa92014fcf4b7dbcef7bc707ade642d47872",
+      "type": "script"
+    },
+    {
+      "id": "scripts_prp_publish_py",
+      "path": "scripts/prp_publish.py",
+      "sha256": "d8164b07bc2108a702eddfb09f96b8b7f7528974026af8347a80ed8755c60e9b",
+      "type": "script"
+    },
+    {
+      "id": "scripts_prp_repo_py",
+      "path": "scripts/prp_repo.py",
+      "sha256": "9f69eee4a0090b881a636e872aefb5bfe09e8515a3dc7b6f28eb0f47b66afab3",
+      "type": "script"
+    },
+    {
+      "id": "scripts_prp_setup_py",
+      "path": "scripts/prp_setup.py",
+      "sha256": "c58efb06ea8830fa87831d2fbde1966577a4327bee0f25fd8bf6e698c2254584",
+      "type": "script"
+    },
+    {
+      "id": "scripts_review_staleness_py",
+      "path": "scripts/review_staleness.py",
+      "sha256": "28abf639d28e41add71b3aae1a28eeab1cce7577dd7341a0829459c96edc8d72",
+      "type": "script"
+    },
+    {
+      "id": "scripts_run_evals_py",
+      "path": "scripts/run_evals.py",
+      "sha256": "345a3c3bf4fb9a2284b9da16bf6176338d22f70a4f2307959df85bdbfb41b788",
+      "type": "script"
+    },
+    {
+      "id": "pipeline",
+      "path": "scripts/run_pipeline.py",
+      "sha256": "f504ec754e134ec39444e81adab75c0344f9c15ff59075a3a37d5e680c17441f",
+      "type": "script"
+    },
+    {
+      "id": "scripts_schema_drift_py",
+      "path": "scripts/schema_drift.py",
+      "sha256": "96629c017fb8c75e4117506819504bfbe9b8bf8c9daba68b20f3b6cef37d9edd",
+      "type": "script"
+    },
+    {
+      "id": "scripts_skill_document_py",
+      "path": "scripts/skill_document.py",
+      "sha256": "06005e9df7c77a4bb284991495bc4315f0cd11d020da01f8428e09d0e95d2003",
+      "type": "script"
+    },
+    {
+      "id": "scripts_staleness_check_py",
+      "path": "scripts/staleness_check.py",
+      "sha256": "432c7393a43acb65a181151d3cc8db38a2dea53a3908cf04bb91575d412b12a6",
+      "type": "script"
+    },
+    {
+      "id": "scripts_success_ledger_py",
+      "path": "scripts/success_ledger.py",
+      "sha256": "47f2f630e4b53ed9aec480dea0667d21c77f7e871b585a2e88fb856fdb317081",
+      "type": "script"
+    },
+    {
+      "id": "scripts_wiki_maintenance_py",
+      "path": "scripts/wiki_maintenance.py",
+      "sha256": "72c88bcfd733d20eb69d8053c48928b69396ce49484cbb678a160c59dc7e68cf",
+      "type": "script"
+    },
+    {
+      "id": "skill_document",
+      "path": "SKILL.md",
+      "sha256": "0ccca5a06ae4b327290bf7b3ad2f0c021a87d74e22c371c4c3cc0d853a5cd76b",
+      "type": "instruction"
+    },
+    {
+      "id": "wiki_index_md",
+      "path": "wiki/index.md",
+      "sha256": "1ec67aa333fdc8c3a20abe80caed9c5edb3e1f0982d672c3eaca12d6e1c846e2",
+      "type": "package_file"
+    },
+    {
+      "id": "wiki_logs_md",
+      "path": "wiki/logs.md",
+      "sha256": "192797326b725dc64ceac7583a3209fe29004a3cbd49c424bc951b3737548cda",
+      "type": "package_file"
+    },
+    {
+      "id": "wiki_readme_md",
+      "path": "wiki/README.md",
+      "sha256": "490d49a9152a61ffc5f284655da3ea2964a25e53618e1ea455c8788e358fbb1f",
+      "type": "package_file"
+    },
+    {
+      "id": "wiki_skill_impact_md",
+      "path": "wiki/skill-impact.md",
+      "sha256": "18de5fb415468472e0bf0123d36ffa3c3fbe16e2b82291e55dce355e8c37be79",
+      "type": "package_file"
+    }
+  ],
+  "constraints": [
+    {
+      "id": "every_expected_is_reachable",
+      "severity": "error"
+    },
+    {
+      "id": "deterministic_multistep_has_orchestrator",
+      "severity": "error"
+    },
+    {
+      "id": "semantic_recon_contracts_ready",
+      "severity": "error"
+    }
+  ],
+  "edges": [
+    {
+      "from": "clean_release_input",
+      "relation": "consumed_by",
+      "to": "pipeline"
+    },
+    {
+      "from": "corrupted_upload_rolled_back_input",
+      "relation": "consumed_by",
+      "to": "pipeline"
+    },
+    {
+      "from": "dirty_tree_refused_input",
+      "relation": "consumed_by",
+      "to": "pipeline"
+    },
+    {
+      "from": "pipeline",
+      "relation": "compared_against",
+      "to": "clean_release_expected"
+    },
+    {
+      "from": "pipeline",
+      "relation": "compared_against",
+      "to": "dirty_tree_refused_expected"
+    },
+    {
+      "from": "pipeline",
+      "relation": "compared_against",
+      "to": "tracked_file_touched_refused_expected"
+    },
+    {
+      "from": "pipeline",
+      "relation": "compared_against",
+      "to": "version_collision_refused_expected"
+    },
+    {
+      "from": "tracked_file_touched_refused_input",
+      "relation": "consumed_by",
+      "to": "pipeline"
+    },
+    {
+      "from": "version_collision_refused_input",
+      "relation": "consumed_by",
+      "to": "pipeline"
+    }
+  ],
+  "gates": [
+    {
+      "id": "spec",
+      "inputs": [
+        "skill_document",
+        "package_index"
+      ]
+    },
+    {
+      "id": "security",
+      "inputs": [
+        "package"
+      ]
+    },
+    {
+      "id": "pipeline",
+      "inputs": [
+        "scripts",
+        "dependency_manifests"
+      ]
+    },
+    {
+      "id": "eval_schema",
+      "inputs": [
+        "eval_specs",
+        "golden_cases",
+        "eval_runner"
+      ]
+    }
+  ],
+  "schema_version": 1,
+  "semantic_recon": {
+    "reasons": [],
+    "sources": [
+      {
+        "contract_id": "release_api",
+        "contract_path": "C:\\Users\\15854\\.agents\\skills\\push-release-pipeline-skill\\contracts\\data_contract_release_api",
+        "id": "release-api",
+        "impact": "high",
+        "reuse": "recurring",
+        "type": "api"
+      }
+    ],
+    "status": "REQUIRED"
+  },
+  "skill": "push-release-pipeline-skill",
+  "workflow": {
+    "kind": "deterministic"
+  }
+}

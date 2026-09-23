@@ -1,0 +1,6 @@
+{
+  "id": "dirty-tree-refused",
+  "version": "1.2.3",
+  "dirtyTree": true,
+  "note": "an uncommitted change is refused before anything is built"
+}

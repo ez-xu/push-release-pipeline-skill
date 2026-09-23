@@ -1,0 +1,6 @@
+{
+  "id": "corrupted-upload-rolled-back",
+  "version": "1.2.3",
+  "corruptUpload": true,
+  "note": "an asset that comes back different fails the closed-loop check and is rolled back"
+}

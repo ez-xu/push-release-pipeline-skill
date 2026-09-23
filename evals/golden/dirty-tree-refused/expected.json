@@ -1,0 +1,23 @@
+{
+  "scenario": "dirty-tree-refused",
+  "exitCode": 2,
+  "refused": true,
+  "published": false,
+  "readBackVerdict": "not run",
+  "refusalReason": "REFUSED: work tree is not clean; a release built from a dirty tree cannot be traced to a commit. Commit or stash first:",
+  "rollback": "not-needed",
+  "tagRemains": false,
+  "releaseRemains": false,
+  "checks": {
+    "closedLoopConsistent": true,
+    "noOrphanTag": true,
+    "provenanceComplete": true
+  },
+  "transcriptTail": [
+    "[ok]  release interface  gitlab: 5 readiness checks passed",
+    "  [ok]  preconditions  main -> gitlab via glab",
+    "",
+    "REFUSED: work tree is not clean; a release built from a dirty tree cannot be traced to a commit. Commit or stash first:",
+    "  M src/app.txt"
+  ]
+}

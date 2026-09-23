@@ -1,0 +1,26 @@
+{
+  "scenario": "tracked-file-touched-refused",
+  "exitCode": 2,
+  "refused": true,
+  "published": false,
+  "readBackVerdict": "not run",
+  "refusalReason": "REFUSED: the repository changed while it was being built, so the artifact cannot be tied to commit bce661873ccb:",
+  "rollback": "not-needed",
+  "tagRemains": false,
+  "releaseRemains": false,
+  "checks": {
+    "closedLoopConsistent": true,
+    "noOrphanTag": true,
+    "provenanceComplete": true
+  },
+  "transcriptTail": [
+    "[ok]  release interface  gitlab: 5 readiness checks passed",
+    "  [ok]  preconditions  main -> gitlab via glab",
+    "  [ok]  clean tree  no uncommitted changes",
+    "  [ok]  identity snapshot (before)  HEAD bce661873ccb",
+    "  [ok]  clean build  0s",
+    "",
+    "REFUSED: the repository changed while it was being built, so the artifact cannot be tied to commit bce661873ccb:",
+    "  work tree became dirty: M src/app.txt"
+  ]
+}

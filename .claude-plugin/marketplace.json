@@ -1,0 +1,14 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "push-release-pipeline-skill",
+  "owner": {
+    "name": "Jinghan Xu"
+  },
+  "plugins": [
+    {
+      "name": "push-release-pipeline-skill",
+      "source": "./",
+      "description": "Turn a local git push into a release whose artifact is provably built from the commit that was pushed."
+    }
+  ]
+}
