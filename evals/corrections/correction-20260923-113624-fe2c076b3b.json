@@ -1,0 +1,19 @@
+{
+  "id": "correction-20260923-113624-fe2c076b3b",
+  "reported_at": "2026-09-23T11:36:24Z",
+  "correction": "committing a host path into .ci/config.json: the repository is cloned on other machines, so an absolute toolchain path either fails there or silently builds with the wrong toolchain. Name build tools with {qmake}/{make}/{makeBin}; keep every host-specific value in the git-ignored .ci/config.local.json.",
+  "proposed_skill_edit": {
+    "file": "SKILL.md",
+    "section": "Gotchas",
+    "change": "Add the reported behavior: committing a host path into .ci/config.json: the repository is cloned on other machines, so an absolute toolchain path either fails there or silently builds with the wrong toolchain. Name build tools with {qmake}/{make}/{makeBin}; keep every host-specific value in the git-ignored .ci/config.local.json."
+  },
+  "regression_test": {
+    "type": "knowledge-retention",
+    "file": "SKILL.md",
+    "must_contain": "committing a host path into .ci/config.json: the repository is cloned on other machines, so an absolute toolchain path either fails there or silently builds with the wrong toolchain. Name build tools with {qmake}/{make}/{makeBin}; keep every host-specific value in the git-ignored .ci/config.local.json."
+  },
+  "version": {
+    "recommended_bump": "patch",
+    "reason": "Correction from real use; preserve the corrected behavior and prevent its removal without review."
+  }
+}

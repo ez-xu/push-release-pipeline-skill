@@ -1,0 +1,19 @@
+{
+  "id": "correction-20260924-074500-3e3e314242",
+  "reported_at": "2026-09-24T07:45:00Z",
+  "correction": "build.clean patterns are pathlib globs, and pathlib's dir/** matches directories only, so a pattern such as build/** deletes nothing while reporting removed 0 file(s) and a stale artifact then survives into the next build. Write dir/**/* (or name the files explicitly), and read removed 0 file(s) as a signal to check the pattern rather than as proof of a clean tree.",
+  "proposed_skill_edit": {
+    "file": "SKILL.md",
+    "section": "Gotchas",
+    "change": "Add the reported behavior: build.clean patterns are pathlib globs, and pathlib's dir/** matches directories only, so a pattern such as build/** deletes nothing while reporting removed 0 file(s) and a stale artifact then survives into the next build. Write dir/**/* (or name the files explicitly), and read removed 0 file(s) as a signal to check the pattern rather than as proof of a clean tree."
+  },
+  "regression_test": {
+    "type": "knowledge-retention",
+    "file": "SKILL.md",
+    "must_contain": "build.clean patterns are pathlib globs, and pathlib's dir/** matches directories only, so a pattern such as build/** deletes nothing while reporting removed 0 file(s) and a stale artifact then survives into the next build. Write dir/**/* (or name the files explicitly), and read removed 0 file(s) as a signal to check the pattern rather than as proof of a clean tree."
+  },
+  "version": {
+    "recommended_bump": "patch",
+    "reason": "Correction from real use; preserve the corrected behavior and prevent its removal without review."
+  }
+}

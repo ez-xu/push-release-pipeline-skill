@@ -1,0 +1,19 @@
+{
+  "id": "correction-20260924-074500-9129a81362",
+  "reported_at": "2026-09-24T07:45:00Z",
+  "correction": "A build that can run on a tree it did not clean must pick the artifact as the file that did not exist before the build, never as the only file it happens to find: a wrapper that assumes an empty output directory turns one surviving file into the pipeline's ambiguity refusal (N artifacts matched <glob>; the version would be ambiguous). Report how many were seen before and after, and point at build.clean when the selection is not exactly one.",
+  "proposed_skill_edit": {
+    "file": "SKILL.md",
+    "section": "Gotchas",
+    "change": "Add the reported behavior: A build that can run on a tree it did not clean must pick the artifact as the file that did not exist before the build, never as the only file it happens to find: a wrapper that assumes an empty output directory turns one surviving file into the pipeline's ambiguity refusal (N artifacts matched <glob>; the version would be ambiguous). Report how many were seen before and after, and point at build.clean when the selection is not exactly one."
+  },
+  "regression_test": {
+    "type": "knowledge-retention",
+    "file": "SKILL.md",
+    "must_contain": "A build that can run on a tree it did not clean must pick the artifact as the file that did not exist before the build, never as the only file it happens to find: a wrapper that assumes an empty output directory turns one surviving file into the pipeline's ambiguity refusal (N artifacts matched <glob>; the version would be ambiguous). Report how many were seen before and after, and point at build.clean when the selection is not exactly one."
+  },
+  "version": {
+    "recommended_bump": "patch",
+    "reason": "Correction from real use; preserve the corrected behavior and prevent its removal without review."
+  }
+}

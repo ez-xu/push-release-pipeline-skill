@@ -1,0 +1,19 @@
+{
+  "id": "correction-20260924-072000-e2dfe29d63",
+  "reported_at": "2026-09-24T07:20:00Z",
+  "correction": "GitLab refuses a release asset whose filepath is not ASCII: the assets-links call answers 400 Filepath is in an invalid format, and the run then rolls back and deletes the tag, so the push leaves no tag and no file behind. A tag may carry non-ASCII, but an asset name is a filepath, so the published asset must be ASCII, and the version read back out of the binary has to use the same ASCII transliteration or the version cross-check refuses the release. A product whose canonical firmware name is Chinese keeps that name for customers: the build command copies it to an ASCII-named file in the directory artifact.glob watches, byte for byte, and release.assetLabel is not the fix - the implementation names the asset after the artifact file, never after that key.",
+  "proposed_skill_edit": {
+    "file": "SKILL.md",
+    "section": "Gotchas",
+    "change": "Add the reported behavior: GitLab refuses a release asset whose filepath is not ASCII: the assets-links call answers 400 Filepath is in an invalid format, and the run then rolls back and deletes the tag, so the push leaves no tag and no file behind. A tag may carry non-ASCII, but an asset name is a filepath, so the published asset must be ASCII, and the version read back out of the binary has to use the same ASCII transliteration or the version cross-check refuses the release. A product whose canonical firmware name is Chinese keeps that name for customers: the build command copies it to an ASCII-named file in the directory artifact.glob watches, byte for byte, and release.assetLabel is not the fix - the implementation names the asset after the artifact file, never after that key."
+  },
+  "regression_test": {
+    "type": "knowledge-retention",
+    "file": "SKILL.md",
+    "must_contain": "GitLab refuses a release asset whose filepath is not ASCII: the assets-links call answers 400 Filepath is in an invalid format, and the run then rolls back and deletes the tag, so the push leaves no tag and no file behind. A tag may carry non-ASCII, but an asset name is a filepath, so the published asset must be ASCII, and the version read back out of the binary has to use the same ASCII transliteration or the version cross-check refuses the release. A product whose canonical firmware name is Chinese keeps that name for customers: the build command copies it to an ASCII-named file in the directory artifact.glob watches, byte for byte, and release.assetLabel is not the fix - the implementation names the asset after the artifact file, never after that key."
+  },
+  "version": {
+    "recommended_bump": "patch",
+    "reason": "Correction from real use; preserve the corrected behavior and prevent its removal without review."
+  }
+}

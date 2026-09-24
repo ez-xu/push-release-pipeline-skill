@@ -1,0 +1,19 @@
+{
+  "id": "correction-20260924-074500-1ba4fab450",
+  "reported_at": "2026-09-24T07:45:00Z",
+  "correction": "On a private instance a release asset is not anonymously reachable, and the refusal is quiet: an unauthenticated GET of the asset URL can answer 200 with the sign-in page, while the API route answers 401 or 404. A read-back that judges by status code accepts a login page as a successful download, so it must compare the bytes (size and SHA-256) and never the status.",
+  "proposed_skill_edit": {
+    "file": "SKILL.md",
+    "section": "Gotchas",
+    "change": "Add the reported behavior: On a private instance a release asset is not anonymously reachable, and the refusal is quiet: an unauthenticated GET of the asset URL can answer 200 with the sign-in page, while the API route answers 401 or 404. A read-back that judges by status code accepts a login page as a successful download, so it must compare the bytes (size and SHA-256) and never the status."
+  },
+  "regression_test": {
+    "type": "knowledge-retention",
+    "file": "SKILL.md",
+    "must_contain": "On a private instance a release asset is not anonymously reachable, and the refusal is quiet: an unauthenticated GET of the asset URL can answer 200 with the sign-in page, while the API route answers 401 or 404. A read-back that judges by status code accepts a login page as a successful download, so it must compare the bytes (size and SHA-256) and never the status."
+  },
+  "version": {
+    "recommended_bump": "patch",
+    "reason": "Correction from real use; preserve the corrected behavior and prevent its removal without review."
+  }
+}

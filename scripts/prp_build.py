@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 import struct
 import sys
 from pathlib import Path
@@ -22,17 +23,105 @@ from prp_repo import PrpError, run
 RT_VERSION = 16
 VS_FFI_SIGNATURE = 0xFEEF04BD
 
+# The committed config must never carry a host path, so the build tools are named
+# by token and resolved on the machine that runs the pipeline.
+LOCAL_CONFIG_REL = ".ci/config.local.json"
+TOOLCHAIN_TOKEN_RE = re.compile(r"\{(qmake|make|makeBin)\}")
+TOOLCHAIN_PIN_HELP = (
+    "pin it in "
+    + LOCAL_CONFIG_REL
+    + ' (git-ignored, machine-local): {"toolchain": {"qmake": "...", "make": "..."}}'
+)
+
+
+def _local_pin(repo: Path) -> dict[str, str]:
+    """Read the machine-local toolchain pin, if this clone has one."""
+    path = repo / LOCAL_CONFIG_REL
+    if not path.is_file():
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    section = data.get("toolchain") if isinstance(data, Mapping) else None
+    if not isinstance(section, Mapping):
+        return {}
+    return {str(key): str(value) for key, value in section.items() if value}
+
+
+def find_toolchain() -> dict[str, str]:
+    """Locate qmake and a make program without assuming one machine's layout.
+
+    Only well-known install roots and PATH are consulted, so the answer is derived
+    from the machine rather than carried in a committed file.
+    """
+    found: dict[str, str] = {}
+    for root in (Path("C:/Qt"), Path("/opt/Qt"), Path.home() / "Qt"):
+        if not root.is_dir():
+            continue
+        for qmake in sorted(root.glob("*/mingw*_*/bin/qmake.exe")):
+            found.setdefault("qmake", str(qmake))
+        for make in sorted(root.glob("Tools/mingw*_*/bin/mingw32-make.exe")):
+            found.setdefault("make", str(make))
+        for qmake in sorted(root.glob("*/gcc_64/bin/qmake")):
+            found.setdefault("qmake", str(qmake))
+        for make in sorted(root.glob("Tools/**/make")):
+            found.setdefault("make", str(make))
+    if "qmake" not in found:
+        for name in ("qmake", "qmake6", "qmake-qt5"):
+            located = shutil.which(name)
+            if located:
+                found["qmake"] = located
+                break
+    if "make" not in found:
+        make = shutil.which("mingw32-make") or shutil.which("make")
+        if make:
+            found["make"] = make
+    return found
+
+
+def toolchain_tokens(repo: Path) -> dict[str, str]:
+    """Resolve {qmake}, {make} and {makeBin} for this machine.
+
+    A machine-local pin wins over discovery, so a machine with several Qt versions
+    keeps building against the one it was set up with.
+    """
+    merged = find_toolchain()
+    merged.update(_local_pin(repo))
+    tokens: dict[str, str] = {}
+    if merged.get("qmake"):
+        tokens["qmake"] = str(merged["qmake"])
+    make = merged.get("make")
+    if make:
+        tokens["make"] = str(make)
+        # The compiler sits next to make, and a qmake-generated Makefile calls it
+        # by bare name, so its directory is what build.env has to add to PATH.
+        tokens["makeBin"] = str(Path(make).parent)
+    return tokens
+
 
 def _expand(value: Any, repo: Path, extra: Mapping[str, str] | None = None) -> Any:
-    """Substitute {repo} and any supplied tokens in a config string."""
+    """Substitute {repo}, the toolchain tokens and any supplied tokens."""
     if not isinstance(value, str):
         return value
     tokens = {"repo": str(repo)}
+    if TOOLCHAIN_TOKEN_RE.search(value):
+        tokens.update(toolchain_tokens(repo))
     if extra:
         tokens.update({k: str(v) for k, v in extra.items()})
     out = value
     for key, replacement in tokens.items():
         out = out.replace("{" + key + "}", replacement)
+    unresolved = TOOLCHAIN_TOKEN_RE.search(out)
+    if unresolved:
+        raise PrpError(
+            "could not resolve {"
+            + unresolved.group(1)
+            + "}: no Qt/MinGW toolchain was found on PATH or in the usual install "
+            "roots (C:/Qt, /opt/Qt, ~/Qt). Install the toolchain, or "
+            + TOOLCHAIN_PIN_HELP
+            + "."
+        )
     return out
 
 

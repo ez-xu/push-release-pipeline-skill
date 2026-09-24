@@ -8,12 +8,24 @@ starts from a consistent state.
 """
 from __future__ import annotations
 
+import json
+import re
 import shutil
 import sys
 from pathlib import Path
 from typing import Sequence
+from urllib.parse import quote
 
-from prp_repo import PrpError, run
+from prp_repo import PrpError, remote_url, run
+
+# The GitLab CLI records the uploaded file's link URL as
+# https://<host>/-/project/<id>/uploads/<secret>/<name> -- the project namespace is
+# missing, so the URL 404s. GitLab's own asset download route redirects to exactly
+# that URL, which is why the asset is unreachable for every consumer.
+_UPLOAD_LINK_RE = re.compile(
+    r"^(?P<base>https?://[^/]+)/-/project/(?P<project_id>\d+)/uploads/"
+    r"(?P<secret>[^/]+)/(?P<name>[^/?#]+)$"
+)
 
 # Provider CLIs print update notices on stderr; nothing here parses stderr for
 # success, so that noise is captured and shown rather than interpreted.
@@ -173,6 +185,7 @@ def create_release(
     release_name: str,
     notes_file: Path,
     log: list[str],
+    remote: str = "origin",
 ) -> None:
     """Create the release, pinning it to the commit that was actually built.
 
@@ -205,6 +218,114 @@ def create_release(
         log.append(proc.stderr.rstrip())
     if proc.returncode != 0:
         raise PrpError("release creation failed for " + tag)
+    repair_asset_link(
+        provider, repo, remote=remote, tag=tag, asset_name=artifact.name, log=log
+    )
+
+
+def gitlab_project(remote_url_value: str) -> tuple[str, str] | None:
+    """Split a git remote URL into (web base, url-encoded project path).
+
+    Handles the forms git actually stores: https://host/group/project.git,
+    ssh://git@host/group/project.git and the scp-like git@host:group/project.git.
+    Returns None for anything that is not a hosted GitLab-style remote (for example
+    a local path), so the caller can leave the link untouched instead of guessing.
+    """
+    value = (remote_url_value or "").strip()
+    if not value:
+        return None
+    if "://" not in value:
+        head, _, path = value.partition(":")
+        # The scp-like form is user@host:path. Without the "@" this is a local path
+        # (on Windows even C:\repo looks like it has a host), so refuse rather than
+        # invent a host from it.
+        if "@" not in head:
+            return None
+        base = "https://" + head.split("@")[-1]
+    else:
+        _, _, rest = value.partition("://")
+        host, _, path = rest.split("@")[-1].partition("/")
+        if not host:
+            return None
+        base = "https://" + host
+    path = path.strip("/")
+    if path.endswith(".git"):
+        path = path[:-4]
+    if "/" not in path:
+        return None
+    return base, quote(path, safe="")
+
+
+def repair_asset_link(
+    provider: str,
+    repo: Path,
+    *,
+    remote: str,
+    tag: str,
+    asset_name: str,
+    log: list[str],
+) -> None:
+    """Give the published asset a URL that can be downloaded.
+
+    The GitLab CLI uploads the file correctly but records the link URL without the
+    project namespace, and GitLab's asset download route redirects to exactly that
+    URL -- so the release asset 404s for every consumer, and for this pipeline's own
+    read-back. Rewriting the link to the API uploads route keeps the uploaded bytes
+    and makes both the browser that clicks the release asset and the read-back see
+    the file. Left unchanged when the URL already resolves.
+    """
+    if provider != "gitlab":
+        return
+    project = gitlab_project(remote_url(repo, remote))
+    if project is None:
+        log.append("[link] remote is not a GitLab URL; asset link left as created")
+        return
+    base, encoded = project
+    cli = require_cli(provider)
+    release_arg = "projects/" + encoded + "/releases/" + quote(tag, safe="")
+    listing = run([cli, "api", release_arg], cwd=repo, timeout=300, env={"PRP_IN_PROGRESS": "1"})
+    if listing.returncode != 0:
+        log.append("[link] could not read the release back to inspect the asset URL")
+        return
+    try:
+        release = json.loads(listing.stdout or "{}")
+    except ValueError:
+        log.append("[link] the release listing was not JSON; asset URL left unchanged")
+        return
+    links = (release.get("assets") or {}).get("links") or []
+    for link in links:
+        if str(link.get("name")) != asset_name:
+            continue
+        match = _UPLOAD_LINK_RE.match(str(link.get("url") or ""))
+        if match is None:
+            log.append("[link] asset URL needs no repair: " + str(link.get("url")))
+            return
+        fixed = (
+            base
+            + "/api/v4/projects/"
+            + match["project_id"]
+            + "/uploads/"
+            + match["secret"]
+            + "/"
+            + match["name"]
+        )
+        argv = [
+            cli, "api", "--method", "PUT",
+            release_arg + "/assets/links/" + str(link.get("id")),
+            "-f", "url=" + fixed,
+            "-f", "direct_asset_path=/" + match["name"],
+        ]
+        log.append("$ " + " ".join(argv))
+        proc = run(argv, cwd=repo, timeout=300, env={"PRP_IN_PROGRESS": "1"})
+        if proc.returncode != 0:
+            if proc.stderr:
+                log.append(proc.stderr.rstrip())
+            raise PrpError(
+                "could not point the release asset " + asset_name + " at a downloadable URL"
+            )
+        log.append("[link] asset URL repaired -> " + fixed)
+        return
+    log.append("[link] no asset link named " + asset_name + " to inspect")
 
 
 def delete_release(provider: str, repo: Path, tag: str, log: list[str]) -> int:

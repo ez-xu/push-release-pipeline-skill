@@ -1,0 +1,19 @@
+{
+  "id": "correction-20260924-074500-3e7449d856",
+  "reported_at": "2026-09-24T07:45:00Z",
+  "correction": "Committed CI files have to survive the console and the platform. Keep every message a build step prints ASCII: CMake and Ninja write raw UTF-8 into a legacy code page such as cp936 or cp1252 and the transcript becomes mojibake, while Python's console API is unaffected. Pin line endings too: .ci/hooks/pre-push is executed by MSYS bash under Git for Windows and a CRLF copy does not run, while a CRLF-sensitive .bat or .cmd breaks when core.autocrlf rewrites it, so .gitattributes should force eol=lf for the hook, *.sh and *.py and eol=crlf for *.bat and *.cmd.",
+  "proposed_skill_edit": {
+    "file": "SKILL.md",
+    "section": "Gotchas",
+    "change": "Add the reported behavior: Committed CI files have to survive the console and the platform. Keep every message a build step prints ASCII: CMake and Ninja write raw UTF-8 into a legacy code page such as cp936 or cp1252 and the transcript becomes mojibake, while Python's console API is unaffected. Pin line endings too: .ci/hooks/pre-push is executed by MSYS bash under Git for Windows and a CRLF copy does not run, while a CRLF-sensitive .bat or .cmd breaks when core.autocrlf rewrites it, so .gitattributes should force eol=lf for the hook, *.sh and *.py and eol=crlf for *.bat and *.cmd."
+  },
+  "regression_test": {
+    "type": "knowledge-retention",
+    "file": "SKILL.md",
+    "must_contain": "Committed CI files have to survive the console and the platform. Keep every message a build step prints ASCII: CMake and Ninja write raw UTF-8 into a legacy code page such as cp936 or cp1252 and the transcript becomes mojibake, while Python's console API is unaffected. Pin line endings too: .ci/hooks/pre-push is executed by MSYS bash under Git for Windows and a CRLF copy does not run, while a CRLF-sensitive .bat or .cmd breaks when core.autocrlf rewrites it, so .gitattributes should force eol=lf for the hook, *.sh and *.py and eol=crlf for *.bat and *.cmd."
+  },
+  "version": {
+    "recommended_bump": "patch",
+    "reason": "Correction from real use; preserve the corrected behavior and prevent its removal without review."
+  }
+}

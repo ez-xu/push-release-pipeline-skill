@@ -1,0 +1,19 @@
+{
+  "id": "correction-20260924-074500-3d37ca89cc",
+  "reported_at": "2026-09-24T07:45:00Z",
+  "correction": "Two things in the config look like levers and are not. {artifactPath} is not a token: only {repo}, the toolchain tokens, {PATH}/{pathsep} in build.env and the release-side tokens in tag.template and release.name are expanded, so a command argument asking for {artifactPath} receives that literal text and the command must locate the artifact itself through artifact.root and artifact.glob. release.assetLabel is written by setup and read by nothing: the published asset is always named after the artifact file, so an ASCII artifact file name is the only way to choose it.",
+  "proposed_skill_edit": {
+    "file": "SKILL.md",
+    "section": "Gotchas",
+    "change": "Add the reported behavior: Two things in the config look like levers and are not. {artifactPath} is not a token: only {repo}, the toolchain tokens, {PATH}/{pathsep} in build.env and the release-side tokens in tag.template and release.name are expanded, so a command argument asking for {artifactPath} receives that literal text and the command must locate the artifact itself through artifact.root and artifact.glob. release.assetLabel is written by setup and read by nothing: the published asset is always named after the artifact file, so an ASCII artifact file name is the only way to choose it."
+  },
+  "regression_test": {
+    "type": "knowledge-retention",
+    "file": "SKILL.md",
+    "must_contain": "Two things in the config look like levers and are not. {artifactPath} is not a token: only {repo}, the toolchain tokens, {PATH}/{pathsep} in build.env and the release-side tokens in tag.template and release.name are expanded, so a command argument asking for {artifactPath} receives that literal text and the command must locate the artifact itself through artifact.root and artifact.glob. release.assetLabel is written by setup and read by nothing: the published asset is always named after the artifact file, so an ASCII artifact file name is the only way to choose it."
+  },
+  "version": {
+    "recommended_bump": "patch",
+    "reason": "Correction from real use; preserve the corrected behavior and prevent its removal without review."
+  }
+}

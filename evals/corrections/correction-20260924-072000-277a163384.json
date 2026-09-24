@@ -1,0 +1,19 @@
+{
+  "id": "correction-20260924-072000-277a163384",
+  "reported_at": "2026-09-24T07:20:00Z",
+  "correction": "A created release can be unusable even though every step reported success: glab 1.52 records the uploaded file's link URL without the project namespace (https://host/-/project/<id>/uploads/<secret>/<name>), and GitLab's asset download route redirects to exactly that URL, so the asset 404s for every consumer and for the pipeline's own read-back. Rewrite the link to the API uploads route (/api/v4/projects/<id>/uploads/<secret>/<name>) before the read-back, idempotently, and fetch the read-back through the route a consumer clicks rather than through a copy obtained another way.",
+  "proposed_skill_edit": {
+    "file": "SKILL.md",
+    "section": "Gotchas",
+    "change": "Add the reported behavior: A created release can be unusable even though every step reported success: glab 1.52 records the uploaded file's link URL without the project namespace (https://host/-/project/<id>/uploads/<secret>/<name>), and GitLab's asset download route redirects to exactly that URL, so the asset 404s for every consumer and for the pipeline's own read-back. Rewrite the link to the API uploads route (/api/v4/projects/<id>/uploads/<secret>/<name>) before the read-back, idempotently, and fetch the read-back through the route a consumer clicks rather than through a copy obtained another way."
+  },
+  "regression_test": {
+    "type": "knowledge-retention",
+    "file": "SKILL.md",
+    "must_contain": "A created release can be unusable even though every step reported success: glab 1.52 records the uploaded file's link URL without the project namespace (https://host/-/project/<id>/uploads/<secret>/<name>), and GitLab's asset download route redirects to exactly that URL, so the asset 404s for every consumer and for the pipeline's own read-back. Rewrite the link to the API uploads route (/api/v4/projects/<id>/uploads/<secret>/<name>) before the read-back, idempotently, and fetch the read-back through the route a consumer clicks rather than through a copy obtained another way."
+  },
+  "version": {
+    "recommended_bump": "patch",
+    "reason": "Correction from real use; preserve the corrected behavior and prevent its removal without review."
+  }
+}

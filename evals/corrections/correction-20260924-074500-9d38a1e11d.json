@@ -1,0 +1,19 @@
+{
+  "id": "correction-20260924-074500-9d38a1e11d",
+  "reported_at": "2026-09-24T07:45:00Z",
+  "correction": "A dry run is not a rehearsal of publishing. release --dry-run stops before the tag is created, so it cannot reach the upload, the asset link or the read-back, and a repository can pass a dry run and still fail its first real release. Only a real run, or verify against a release that already exists, covers that path.",
+  "proposed_skill_edit": {
+    "file": "SKILL.md",
+    "section": "Gotchas",
+    "change": "Add the reported behavior: A dry run is not a rehearsal of publishing. release --dry-run stops before the tag is created, so it cannot reach the upload, the asset link or the read-back, and a repository can pass a dry run and still fail its first real release. Only a real run, or verify against a release that already exists, covers that path."
+  },
+  "regression_test": {
+    "type": "knowledge-retention",
+    "file": "SKILL.md",
+    "must_contain": "A dry run is not a rehearsal of publishing. release --dry-run stops before the tag is created, so it cannot reach the upload, the asset link or the read-back, and a repository can pass a dry run and still fail its first real release. Only a real run, or verify against a release that already exists, covers that path."
+  },
+  "version": {
+    "recommended_bump": "patch",
+    "reason": "Correction from real use; preserve the corrected behavior and prevent its removal without review."
+  }
+}

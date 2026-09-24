@@ -81,6 +81,14 @@ PATH.
       "compare": "none"
     },
     {
+      "id": "host-path-config-refused",
+      "input": "golden/host-path-config-refused/input.json",
+      "expected": null,
+      "split": "val",
+      "expected_status": "pending-first-green",
+      "compare": "none"
+    },
+    {
       "id": "corrupted-upload-rolled-back",
       "input": "golden/corrupted-upload-rolled-back/input.json",
       "expected": null,

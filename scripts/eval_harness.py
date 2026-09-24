@@ -97,12 +97,21 @@ name = "app_V" + version + ".bin"
 print("built " + name + " for " + head[:12])
 '''
 
+# Only machine-independent values may go into the committed config; build.env is
+# cleared so the scenario never depends on the host having a compiler toolchain.
 CONFIG_OVERRIDES = {
-    "build": {"build": ["{python}", "tool/build.py"], "configure": [],
-              "clean": ["build/**/*.bin"], "cwd": ".", "timeoutSeconds": 600},
+    "build": {"configure": [], "clean": ["build/**/*.bin"], "cwd": ".",
+              "env": {}, "timeoutSeconds": 600},
     "artifact": {"root": "build/app/bin", "glob": "app_V*.bin",
                  "versionRegex": r"_V(?P<version>[0-9]+(?:\.[0-9]+)+)\.bin$",
                  "embeddedVersion": None},
+}
+
+# The build command names this interpreter by absolute path, which the committed
+# config may not carry. The scenario exercises the machine-local overlay instead,
+# exactly as a real host does.
+LOCAL_CONFIG_OVERRIDES = {
+    "build": {"build": ["{python}", "tool/build.py"]},
 }
 
 
@@ -197,7 +206,14 @@ def build_scenario(scenario: dict, root: Path) -> dict:
             config.setdefault(section, {})
             for key, value in values.items():
                 config[section][key] = _substitute(value)
+        if scenario.get("hostPathInConfig"):
+            # A config only the machine that wrote it could build: the portability
+            # gate must refuse this before any build is attempted.
+            config.setdefault("build", {})["configure"] = [
+                "C:\\Qt\\5.15.2\\mingw81_32\\bin\\qmake.exe", "tool/build.py"]
         write(config_path, json.dumps(config, indent=2) + "\n")
+    write(repo / ".ci" / "config.local.json",
+          json.dumps(_substitute(LOCAL_CONFIG_OVERRIDES), indent=2) + "\n")
     run(["git", "add", "-A"], cwd=repo)
     run(["git", "commit", "-m", "add the release pipeline config"], cwd=repo)
 

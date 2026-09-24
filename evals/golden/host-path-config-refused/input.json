@@ -1,0 +1,6 @@
+{
+  "id": "host-path-config-refused",
+  "version": "1.2.3",
+  "hostPathInConfig": true,
+  "note": "a committed config carrying an absolute host path is refused before the build"
+}

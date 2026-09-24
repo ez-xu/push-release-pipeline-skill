@@ -36,6 +36,7 @@ from prp_build import (  # noqa: E402
     embedded_version,
     resolve_artifact,
     run_step,
+    toolchain_tokens,
 )
 from prp_publish import (  # noqa: E402
     auth_check,
@@ -71,6 +72,7 @@ from prp_setup import (  # noqa: E402
     CONFIG_REL,
     HOOK_REL,
     IGNORE_ENTRIES,
+    LOCAL_CONFIG_REL,
     OUTPUT_REL,
     default_config,
     ensure_gitignore,
@@ -80,6 +82,7 @@ from prp_setup import (  # noqa: E402
     probe,
     propose_config,
     save_config,
+    save_local_config,
     uninstall_hook,
     validate_config,
     vendor_lib,
@@ -216,7 +219,7 @@ def cmd_setup(args: argparse.Namespace) -> int:
     repo = repo_root(args.repo)
     print("repo: " + str(repo))
     facts = probe(repo)
-    config, notes = propose_config(facts)
+    config, notes, local = propose_config(facts)
 
     config_path = repo / CONFIG_REL
     if config_path.is_file() and not args.force:
@@ -226,11 +229,15 @@ def cmd_setup(args: argparse.Namespace) -> int:
         save_config(repo, config)
         print("wrote " + str(config_path))
 
+    if local:
+        local_path = save_local_config(repo, local)
+        print("wrote " + str(local_path) + "  (machine-local, git-ignored, never committed)")
+
     print("")
     print("Detected:")
     for line in notes:
         print("  - " + line)
-    problems = validate_config(config)
+    problems = validate_config(config, repo)
     if problems:
         print("")
         print("Config still needs attention before the first release:")
@@ -295,7 +302,14 @@ def cmd_check(args: argparse.Namespace) -> int:
         return 1
     report["repo"] = str(repo)
     report["configPath"] = str(repo / CONFIG_REL)
-    report["configProblems"] = validate_config(config)
+    report["configProblems"] = validate_config(config, repo)
+    report["localConfigPath"] = str(repo / LOCAL_CONFIG_REL)
+    report["localConfigPresent"] = (repo / LOCAL_CONFIG_REL).is_file()
+    try:
+        report["toolchain"] = toolchain_tokens(repo)
+    except PrpError as exc:
+        report["toolchain"] = {}
+        report["toolchainError"] = str(exc)
     url = remote_url(repo, str(config.get("remote", "origin")))
     provider = detect_provider(url)
     report["remoteUrl"] = url
@@ -338,6 +352,12 @@ def cmd_check(args: argparse.Namespace) -> int:
     print("release contract:" + " usable: " + str(contract.get("usable"))
           + "  " + str(contract.get("interface", contract.get("error", ""))))
     print("output ignored:  " + str(report["outputIgnored"]))
+    print("local overlay:   " + str(report["localConfigPresent"])
+          + "  (" + report["localConfigPath"] + ")")
+    resolved = report.get("toolchain") or {}
+    print("toolchain:       "
+          + (", ".join(key + "=" + str(value) for key, value in sorted(resolved.items()))
+             or "unresolved; see config problems below"))
     print("work tree clean: " + str(report["clean"]))
     if report["configProblems"]:
         print("config problems:")
@@ -355,9 +375,9 @@ def cmd_release(args: argparse.Namespace) -> int:
     repo = repo_root(args.repo)
     config = load_config(repo)
     run = Run(repo, config)
-    problems = validate_config(config)
+    problems = validate_config(config, repo)
     if problems:
-        raise Refused("config is incomplete: " + "; ".join(problems))
+        raise Refused("config is not releasable: " + "; ".join(problems))
 
     remote = args.remote or str(config.get("remote", "origin"))
     provider_cfg = str((config.get("release") or {}).get("provider", "auto"))
@@ -397,6 +417,13 @@ def cmd_release(args: argparse.Namespace) -> int:
         )
     run.step("clean tree", "pass", "no uncommitted changes")
 
+    # A fresh clone carries no shadow build directory, and a missing working
+    # directory fails the run before qmake ever gets a chance to create it.
+    fresh_cwd = repo / str((config.get("build") or {}).get("cwd", "."))
+    if not fresh_cwd.exists():
+        fresh_cwd.mkdir(parents=True, exist_ok=True)
+        run.log.append("[build] created missing build directory " + str(fresh_cwd))
+
     guard = config.get("guard") or {}
     mutable = [str(p) for p in (guard.get("mutableTrackedPaths") or [])]
 
@@ -410,7 +437,9 @@ def cmd_release(args: argparse.Namespace) -> int:
     build_start = time.time()
     mtimes_before = mtime_snapshot(repo, paths)
     build_cfg_path = repo / CONFIG_REL
+    local_cfg_path = repo / LOCAL_CONFIG_REL
     config_before = build_cfg_path.read_bytes() if build_cfg_path.is_file() else b""
+    local_before = local_cfg_path.read_bytes() if local_cfg_path.is_file() else b""
     run.log.append("build window opened at " + _now())
     try:
         clean_outputs(build_cfg.get("clean") or [], repo, run.log)
@@ -452,7 +481,13 @@ def cmd_release(args: argparse.Namespace) -> int:
 
     if build_cfg_path.is_file() and build_cfg_path.read_bytes() != config_before:
         raise Refused("the build rewrote " + CONFIG_REL + ", so the run is not reproducible")
-    run.step("config stability", "pass", CONFIG_REL + " unchanged by the build")
+    if local_cfg_path.is_file() and local_cfg_path.read_bytes() != local_before:
+        raise Refused(
+            "the build rewrote " + LOCAL_CONFIG_REL + ", so the toolchain the artifact was "
+            "built with cannot be assumed to be the one this run started with"
+        )
+    run.step("config stability", "pass",
+             CONFIG_REL + " and " + LOCAL_CONFIG_REL + " unchanged by the build")
 
     artifact_cfg = config.get("artifact") or {}
     artifact, version = resolve_artifact(artifact_cfg, repo)
@@ -567,7 +602,7 @@ def cmd_release(args: argparse.Namespace) -> int:
             release_name=_render(
                 str((config.get("release") or {}).get("name", "{tag}")), tokens
             ),
-            notes_file=notes_file, log=run.log,
+            notes_file=notes_file, log=run.log, remote=remote,
         )
         release_created = True
         run.step("create release", "pass", tag + " on " + provider)

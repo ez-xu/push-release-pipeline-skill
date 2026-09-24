@@ -1,0 +1,19 @@
+{
+  "id": "correction-20260923-115308-f6bb7b7fa6",
+  "reported_at": "2026-09-23T11:53:08Z",
+  "correction": "baking an interpreter path into .ci/hooks/pre-push: the hook is committed too, so an absolute path pins it to the machine that ran setup and silently skips the pipeline on every other clone. The template resolves PRP_PYTHON, python3, python and py from PATH at run time, and the portability gate scans every file under .ci/hooks/ as well as .ci/config.json.",
+  "proposed_skill_edit": {
+    "file": "SKILL.md",
+    "section": "Gotchas",
+    "change": "Add the reported behavior: baking an interpreter path into .ci/hooks/pre-push: the hook is committed too, so an absolute path pins it to the machine that ran setup and silently skips the pipeline on every other clone. The template resolves PRP_PYTHON, python3, python and py from PATH at run time, and the portability gate scans every file under .ci/hooks/ as well as .ci/config.json."
+  },
+  "regression_test": {
+    "type": "knowledge-retention",
+    "file": "SKILL.md",
+    "must_contain": "baking an interpreter path into .ci/hooks/pre-push: the hook is committed too, so an absolute path pins it to the machine that ran setup and silently skips the pipeline on every other clone. The template resolves PRP_PYTHON, python3, python and py from PATH at run time, and the portability gate scans every file under .ci/hooks/ as well as .ci/config.json."
+  },
+  "version": {
+    "recommended_bump": "patch",
+    "reason": "Correction from real use; preserve the corrected behavior and prevent its removal without review."
+  }
+}
