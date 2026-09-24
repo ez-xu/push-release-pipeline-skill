@@ -1,0 +1,19 @@
+{
+  "id": "correction-20260924-083000-2089b27391",
+  "reported_at": "2026-09-24T08:30:00Z",
+  "correction": "A pipeline that re-lists the build commands duplicates the project's own build script, and the two drift: the release then builds something the developer never ran. When the repository already has a build entry point (build.bat, a Makefile, a script), leave build.configure empty and call that entry from build.build, passing the pipeline's isolation through environment variables or extra arguments the script already honours. Keep one source of truth for the directories as well - a thin wrapper can derive its build directory from artifact.root instead of repeating it.",
+  "proposed_skill_edit": {
+    "file": "SKILL.md",
+    "section": "Gotchas",
+    "change": "Add the reported behavior: A pipeline that re-lists the build commands duplicates the project's own build script, and the two drift: the release then builds something the developer never ran. When the repository already has a build entry point (build.bat, a Makefile, a script), leave build.configure empty and call that entry from build.build, passing the pipeline's isolation through environment variables or extra arguments the script already honours. Keep one source of truth for the directories as well - a thin wrapper can derive its build directory from artifact.root instead of repeating it."
+  },
+  "regression_test": {
+    "type": "knowledge-retention",
+    "file": "SKILL.md",
+    "must_contain": "A pipeline that re-lists the build commands duplicates the project's own build script, and the two drift: the release then builds something the developer never ran. When the repository already has a build entry point (build.bat, a Makefile, a script), leave build.configure empty and call that entry from build.build, passing the pipeline's isolation through environment variables or extra arguments the script already honours. Keep one source of truth for the directories as well - a thin wrapper can derive its build directory from artifact.root instead of repeating it."
+  },
+  "version": {
+    "recommended_bump": "patch",
+    "reason": "Correction from real use; preserve the corrected behavior and prevent its removal without review."
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "id": "correction-20260924-083000-a3b1d68a31",
+  "reported_at": "2026-09-24T08:30:00Z",
+  "correction": "Deciding \"the artifact this build produced\" by file name alone breaks on a rebuild that produces the same name: the same commit on the same day yields a byte-identical file with an identical name, so a name-based diff reports zero new files and the run stops on a complete build. Treat a file as this build's output when it did not exist before the build or its mtime is not older than the build start, and require exactly one such file.",
+  "proposed_skill_edit": {
+    "file": "SKILL.md",
+    "section": "Gotchas",
+    "change": "Add the reported behavior: Deciding \"the artifact this build produced\" by file name alone breaks on a rebuild that produces the same name: the same commit on the same day yields a byte-identical file with an identical name, so a name-based diff reports zero new files and the run stops on a complete build. Treat a file as this build's output when it did not exist before the build or its mtime is not older than the build start, and require exactly one such file."
+  },
+  "regression_test": {
+    "type": "knowledge-retention",
+    "file": "SKILL.md",
+    "must_contain": "Deciding \"the artifact this build produced\" by file name alone breaks on a rebuild that produces the same name: the same commit on the same day yields a byte-identical file with an identical name, so a name-based diff reports zero new files and the run stops on a complete build. Treat a file as this build's output when it did not exist before the build or its mtime is not older than the build start, and require exactly one such file."
+  },
+  "version": {
+    "recommended_bump": "patch",
+    "reason": "Correction from real use; preserve the corrected behavior and prevent its removal without review."
+  }
+}

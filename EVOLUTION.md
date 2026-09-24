@@ -143,3 +143,31 @@ Regression test: `evals/corrections/correction-20260924-074500-3e7449d856.json` 
 
 Version recommendation: patch - correction from real use.
 
+## 2026-09-24T08:30:00Z - correction from use
+
+Change ID: `correction-20260924-083000-2089b27391`
+
+Reported while using the skill, not caught by any automated check.
+
+> A pipeline that re-lists the build commands duplicates the project's own build script, and the two drift: the release then builds something the developer never ran. When the repository already has a build entry point (build.bat, a Makefile, a script), leave build.configure empty and call that entry from build.build, passing the pipeline's isolation through environment variables or extra arguments the script already honours. Keep one source of truth for the directories as well - a thin wrapper can derive its build directory from artifact.root instead of repeating it.
+
+Proposed skill edit: add the corrected behavior to `SKILL.md` -> `## Gotchas`.
+
+Regression test: `evals/corrections/correction-20260924-083000-2089b27391.json` must keep this behavior in the skill.
+
+Version recommendation: patch - correction from real use.
+
+## 2026-09-24T08:30:00Z - correction from use
+
+Change ID: `correction-20260924-083000-a3b1d68a31`
+
+Reported while using the skill, not caught by any automated check.
+
+> Deciding "the artifact this build produced" by file name alone breaks on a rebuild that produces the same name: the same commit on the same day yields a byte-identical file with an identical name, so a name-based diff reports zero new files and the run stops on a complete build. Treat a file as this build's output when it did not exist before the build or its mtime is not older than the build start, and require exactly one such file.
+
+Proposed skill edit: add the corrected behavior to `SKILL.md` -> `## Gotchas`.
+
+Regression test: `evals/corrections/correction-20260924-083000-a3b1d68a31.json` must keep this behavior in the skill.
+
+Version recommendation: patch - correction from real use.
+

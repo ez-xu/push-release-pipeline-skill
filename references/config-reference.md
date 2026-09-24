@@ -69,8 +69,8 @@ everywhere else. The gate scans every file under .ci/hooks/ and names the line.
 | outputDir | where per-run records go; must be git-ignored, and setup adds it |
 | build.cwd | working directory for the build steps, relative to the repository root |
 | build.clean | globs removed before configuring, relative to the repository root; pathlib semantics, so dir/** matches directories only — use dir/**/* to delete files |
-| build.configure | the configure step, as a list of arguments or a single string |
-| build.build | the compile step; a non-zero exit refuses the release |
+| build.configure | the configure step, as a list of arguments or a single string. If the repository already has a build script its developers run, prefer leaving this empty and calling that script from build.build, so the pipeline and the developer run one recipe instead of two that drift |
+| build.build | the compile step; a non-zero exit refuses the release. Calling the project's own build entry is fine and preferred; give it the pipeline's output directory through an environment variable or an argument it already honours |
 | build.env | environment overrides for the configure and build steps; {PATH} and {pathsep} expand from the caller's environment, {makeBin} is the directory of the resolved {make} |
 | build.timeoutSeconds | per-step timeout, default 3600 |
 | artifact.root | directory the produced artifact lands in, relative to the repository root. Keep it to the one file that gets published: a second, differently named copy — an ASCII-named copy of a non-ASCII product name, for instance — belongs in its own directory, or artifact.glob matches both and the release is refused as ambiguous |

@@ -20,6 +20,7 @@ import json
 import os
 import sys
 import time
+import traceback
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -830,8 +831,28 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("")
         print("ERROR: " + str(exc), file=sys.stderr)
         code = 1
+    except KeyboardInterrupt:
+        # A deliberate Ctrl-C is not the pipeline's failure to report, and it must not
+        # be turned into "carry on with the push" below.
+        print("")
+        print("INTERRUPTED: nothing was published.", file=sys.stderr)
+        code = 130
+    except BaseException:  # noqa: BLE001 - an unexpected crash must still be reported in full
+        # Everything above is a failure the pipeline understands. Anything else is a bug
+        # in the pipeline, and leaving it unhandled used to cost both the report and the
+        # push: the traceback exited non-zero, so git refused the code push even though
+        # hook.mode said a release problem must never block it. The crash is still loud,
+        # and in hook mode the code still lands.
+        print("", file=sys.stderr)
+        print(
+            "CRASH: the pipeline hit an unexpected error - this is a bug in the pipeline, "
+            "not in your build. The traceback follows so it can be reported.",
+            file=sys.stderr,
+        )
+        traceback.print_exc()
+        code = 1
     _record("skill_run", started)
-    if hook_mode and code != 0 and not _hook_blocks_push(args):
+    if hook_mode and code not in (0, 130) and not _hook_blocks_push(args):
         print("")
         print("The push itself is not blocked (hook.mode is not 'gate').")
         print("Fix the problem above and push again, or run the pipeline by hand:")
