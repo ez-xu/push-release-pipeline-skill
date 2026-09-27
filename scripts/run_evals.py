@@ -296,11 +296,15 @@ def validate_spec(spec: dict, skill_dir: Path) -> list[str]:
     return errors
 
 
-def _run_one(cmd: str, output_path: Path | None) -> bool:
+def _run_one(cmd: str, output_path: Path | None, cwd: Path | None = None) -> bool:
     """Run a single command check once. {output} is bound to output_path.
 
     Returns True on exit code 0. Retries once on failure (matches autoresearch
     command-eval semantics).
+
+    cwd is the skill root: a criterion command names its script relative to it
+    (scripts/eval_check.py), so running the suite from anywhere else used to fail
+    every criterion even though the skill itself was fine.
     """
     if OUTPUT_PLACEHOLDER in cmd:
         if output_path is None:
@@ -310,7 +314,9 @@ def _run_one(cmd: str, output_path: Path | None) -> bool:
         bound = cmd
     bound = _resolve_interpreter(bound)
     for _ in range(2):
-        proc = subprocess.run(bound, shell=True, capture_output=True)  # noqa: S602
+        proc = subprocess.run(  # noqa: S602
+            bound, shell=True, capture_output=True, cwd=str(cwd) if cwd else None,
+        )
         if proc.returncode == 0:
             return True
     return False
@@ -362,7 +368,7 @@ def run_command_checks(
                 skipped += 1
                 results.append({"case": case_id, "criterion": crit["id"], "status": "skipped"})
                 continue
-            ok = _run_one(crit["cmd"], bound_output)
+            ok = _run_one(crit["cmd"], bound_output, skill_dir)
             passed += ok
             failed += not ok
             results.append(
