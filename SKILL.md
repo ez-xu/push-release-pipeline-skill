@@ -117,7 +117,7 @@ python3 scripts/run_pipeline.py verify --repo <REPO> --tag <TAG>
 
 | Step | Gate | Refuses when |
 |---|---|---|
-| 1 | preconditions | not a git work tree, config incomplete, remote missing, release CLI absent or unauthenticated, not on the release branch |
+| 1 | preconditions | not a git work tree, config incomplete, remote missing, release CLI absent or unauthenticated, not on the release branch (unless project.releaseBranch is `*`) |
 | 2 | clean tree | any uncommitted or untracked change exists |
 | 3 | identity snapshot | captures HEAD, tree, tracked-file manifest, status |
 | 4 | clean build | the configured build command exits non-zero |

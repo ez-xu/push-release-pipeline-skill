@@ -64,7 +64,7 @@ everywhere else. The gate scans every file under .ci/hooks/ and names the line.
 | Field | Meaning |
 |---|---|
 | project.name | used in the release notes only |
-| project.releaseBranch | the only branch the pipeline will release from; override per run with --any-branch |
+| project.releaseBranch | the only branch the pipeline will release from, or `*` for any branch; override per run with --any-branch |
 | remote | the git remote to push tags to and read tags back from |
 | outputDir | where per-run records go; must be git-ignored, and setup adds it |
 | build.cwd | working directory for the build steps, relative to the repository root |
@@ -86,6 +86,17 @@ everywhere else. The gate scans every file under .ci/hooks/ and names the line.
 | verify.rollbackOnFailure | whether to delete the tag and release a failed run created |
 | guard.mutableTrackedPaths | tracked files the build is allowed to rewrite |
 | hook.mode | release (never block the push) or gate (block it when the pipeline fails) |
+
+### Releasing from any branch
+
+project.releaseBranch normally holds one branch name. The single value `*` means every
+branch may release without --any-branch, which suits a repository that publishes a build
+per branch on purpose: the artifact name already carries the branch it was built from -
+the project's own version read-back decides that - so a per-branch release stays
+identifiable. What it gives up is the guarantee that every release comes from one line,
+so `check` reports `(release branch: any branch)` and the release transcript records
+`(any branch)`: the policy stays visible in both places rather than becoming an
+invisible default.
 
 ## Template tokens
 

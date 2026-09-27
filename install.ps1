@@ -25,7 +25,7 @@ $ErrorActionPreference = "Stop"
 # Constants
 # ---------------------------------------------------------------------------
 $SkillName = "push-release-pipeline-skill"
-$Version = "1.1.0"
+$Version = "1.2.0"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $HomeDir = $env:USERPROFILE
 

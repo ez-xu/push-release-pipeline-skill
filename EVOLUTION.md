@@ -435,3 +435,16 @@ Version recommendation: patch - correction from real use.
 ]
 ```
 
+## 2026-09-27T12:00:00Z - correction from use
+
+Change ID: `correction-20260927-120000-f6a7b8c9`
+
+Reported while using the skill, not caught by any automated check.
+
+> The release-branch gate was all-or-nothing in the wrong place: the only way to release from a branch that is not the configured one was --any-branch, a per-run flag. A repository that publishes a build per branch on purpose therefore had to pass the flag on every single release - and the fact that it does so lives in somebody's shell history rather than in the shared config, and a hook-triggered push cannot pass it at all. Let project.releaseBranch take the single value * meaning every branch may release, keep --any-branch as the one-run override, and print the policy where it applies (check reports release branch: any branch, the release transcript records any branch) so choosing it stays visible instead of becoming an invisible default. The artifact name already carries the branch it was built from, because the project's own version read-back decides that, so a per-branch release stays identifiable - which is what makes relaxing the gate safe rather than merely convenient.
+
+Proposed skill edit: support `project.releaseBranch: "*"` and document it in `SKILL.md` and `references/config-reference.md`.
+
+Regression test: `evals/corrections/correction-20260927-120000-f6a7b8c9.json` must keep this behavior in the skill.
+
+Version recommendation: minor - adds a config value that changes which branches may release.
