@@ -242,6 +242,40 @@ def resolve_artifact(artifact_cfg: Mapping[str, Any], repo: Path) -> tuple[Path,
     return artifact, version
 
 
+def resolve_extra_assets(artifact_cfg: Mapping[str, Any], repo: Path) -> list[Path]:
+    """Files to publish alongside the primary artifact, from artifact.extraGlobs.
+
+    A firmware release often ships the raw image and a flashing-ready hex. Each glob must
+    match exactly one file under artifact.root: none means the build did not produce what
+    the config promised, and two is the same ambiguity the primary artifact refuses --
+    either would put a missing or wrong file on the release page. An unset key publishes
+    the primary artifact alone, so nothing changes for a config that does not use it.
+    """
+    globs = artifact_cfg.get("extraGlobs") or []
+    if isinstance(globs, str):
+        globs = [globs]
+    if not globs:
+        return []
+    root = repo / str(_expand(artifact_cfg.get("root", "."), repo))
+    if not root.is_dir():
+        raise PrpError("artifact root does not exist: " + str(root))
+    out: list[Path] = []
+    for pattern in globs:
+        matches = sorted(p for p in root.glob(str(pattern)) if p.is_file())
+        if len(matches) != 1:
+            raise PrpError(
+                "artifact.extraGlobs pattern "
+                + repr(str(pattern))
+                + " matched "
+                + str(len(matches))
+                + " file(s) under "
+                + str(root)
+                + "; exactly one is required"
+            )
+        out.append(matches[0])
+    return out
+
+
 def _rva_to_offset(data: bytes, rva: int, sections: list[tuple[int, int, int, int]]) -> int | None:
     for va, vsize, raw_ptr, raw_size in sections:
         if va <= rva < va + max(vsize, raw_size):

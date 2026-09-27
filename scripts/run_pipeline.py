@@ -36,6 +36,7 @@ from prp_build import (  # noqa: E402
     clean_outputs,
     embedded_version,
     resolve_artifact,
+    resolve_extra_assets,
     run_step,
     toolchain_tokens,
 )
@@ -215,6 +216,18 @@ def _notes_markdown(run: Run, info: Mapping[str, Any]) -> str:
         "## Provenance",
         "",
     ]
+    extra_assets = info.get("extraAssets") or []
+    if extra_assets:
+        index = len(lines) - 2          # immediately above "## Provenance"
+        block = ["## Also attached", ""]
+        for entry in extra_assets:
+            block.append(
+                "- " + str(entry.get("name"))
+                + "  (" + str(entry.get("size")) + " bytes, sha256 "
+                + str(entry.get("sha256"))[:16] + "...)"
+            )
+        block.append("")
+        lines[index:index] = block
     if "tree" in info:
         lines += [
             "This artifact was produced by a clean build from commit " + value("commit") + ".",
@@ -553,6 +566,16 @@ def cmd_release(args: argparse.Namespace) -> int:
     artifact, version = resolve_artifact(artifact_cfg, repo)
     run.step("artifact located", "pass", artifact.name + " -> version " + version)
 
+    # Resolved before the dry-run branch, so a rehearsal reports every file the release
+    # would carry instead of only the primary artifact.
+    extras = resolve_extra_assets(artifact_cfg, repo)
+    if extras:
+        run.step(
+            "extra assets",
+            "pass",
+            ", ".join(path.name + " (" + str(path.stat().st_size) + " bytes)" for path in extras),
+        )
+
     embedded, note = embedded_version(artifact, artifact_cfg, repo)
     if embedded is not None and embedded != version:
         raise Refused(
@@ -613,11 +636,18 @@ def cmd_release(args: argparse.Namespace) -> int:
             "branch": branch, "artifact": str(artifact), "artifactName": artifact.name,
             "sha256": sha, "size": artifact.stat().st_size, "versionSource": note,
             "builtAt": _now(), "published": False, "dryRun": True,
+            "extraAssets": [
+                {"name": path.name, "sha256": sha256_file(path), "size": path.stat().st_size}
+                for path in extras
+            ],
             "readBackVerdict": "not run (dry run)",
         })
         print("")
         print("Dry run complete. Would tag " + tag + " at " + short(before.head)
-              + " and publish " + artifact.name + " to " + provider + ".")
+              + " and publish " + artifact.name
+              + (" with " + str(len(extras)) + " extra file(s): "
+                 + ", ".join(path.name for path in extras) if extras else "")
+              + " to " + provider + ".")
         print("Output: " + str(run.out_dir))
         return 0
 
@@ -656,16 +686,21 @@ def cmd_release(args: argparse.Namespace) -> int:
 
         notes_file = run.out_dir / "release-notes.md"
         run.out_dir.mkdir(parents=True, exist_ok=True)
+        info["extraAssets"] = [
+            {"name": path.name, "sha256": sha256_file(path), "size": path.stat().st_size}
+            for path in extras
+        ]
         _write(notes_file, _notes_markdown(run, info))
         create_release(
             provider, repo, tag=tag, commit=before.head, artifact=artifact,
             release_name=_render(
                 str((config.get("release") or {}).get("name", "{tag}")), tokens
             ),
-            notes_file=notes_file, log=run.log, remote=remote,
+            notes_file=notes_file, log=run.log, remote=remote, extra_assets=extras,
         )
         release_created = True
-        run.step("create release", "pass", tag + " on " + provider)
+        run.step("create release", "pass", tag + " on " + provider
+                 + (" (+" + str(len(extras)) + " extra file(s))" if extras else ""))
 
         verify_cfg = config.get("verify") or {}
         if verify_cfg.get("readBack", True):
@@ -677,6 +712,18 @@ def cmd_release(args: argparse.Namespace) -> int:
             if verdict != "pass":
                 raise PrpError(detail)
             run.step("closed-loop read-back", "pass", detail)
+            # The extra files are held to the same standard as the primary one: a consumer
+            # who downloads the hex must get the bytes this build produced, so each is
+            # fetched back and compared rather than assumed good because it uploaded.
+            for path, entry in zip(extras, info["extraAssets"]):
+                verdict_x, detail_x, extra_x = _read_back(
+                    run, provider, repo, remote, tag, before.head,
+                    asset_name=path.name, expected_sha=entry["sha256"], local_artifact=path,
+                )
+                if verdict_x != "pass":
+                    raise PrpError(detail_x)
+                entry["readBackSha256"] = extra_x.get("readBackSha256", "")
+                run.step("closed-loop read-back " + path.name, "pass", detail_x)
         else:
             run.step("closed-loop read-back", "skip", "verify.readBack is false")
             info["readBackVerdict"] = "disabled by config"
@@ -720,6 +767,11 @@ def cmd_release(args: argparse.Namespace) -> int:
     print("  sha256 " + sha)
     print("  output " + str(run.out_dir))
     _print_release_urls(urls)
+    for entry in info.get("extraAssets") or []:
+        extra_urls = release_urls(provider, repo, remote, tag, str(entry["name"]))
+        if extra_urls:
+            print("Also published: " + extra_urls["assetUrl"])
+            print("  sha256 " + str(entry.get("sha256")))
     return 0
 
 
@@ -907,6 +959,27 @@ def cmd_verify(args: argparse.Namespace) -> int:
         asset_name=asset_name, expected_sha=expected_sha, local_artifact=artifact,
     )
     run.step("closed-loop read-back", "pass" if verdict == "pass" else "fail", detail)
+
+    # A release that carried extra files is re-checked file by file: the record holds the
+    # hash each one should have, so a re-check covers everything a consumer can download.
+    checked_extras: list[dict[str, Any]] = []
+    for entry in (record or {}).get("extraAssets") or []:
+        name_x = str(entry.get("name") or "")
+        want_x = str(entry.get("sha256") or "")
+        if not name_x or not want_x:
+            continue
+        verdict_x, detail_x, extra_x = _read_back(
+            run, provider, repo, remote, tag, commit,
+            asset_name=name_x, expected_sha=want_x,
+        )
+        run.step("closed-loop read-back " + name_x,
+                 "pass" if verdict_x == "pass" else "fail", detail_x)
+        checked_extras.append({**entry, "readBackSha256": extra_x.get("readBackSha256", "")})
+        if verdict_x != "pass":
+            verdict, detail = "fail", detail_x
+    if checked_extras:
+        extra["extraAssets"] = checked_extras
+
     urls = release_urls(provider, repo, remote, tag, asset_name)
     _save_outputs(run, {
         "tag": tag, "version": version, "commit": commit,
@@ -919,6 +992,10 @@ def cmd_verify(args: argparse.Namespace) -> int:
     print("")
     print(detail)
     _print_release_urls(urls)
+    for entry in checked_extras:
+        extra_urls = release_urls(provider, repo, remote, tag, str(entry.get("name")))
+        if extra_urls:
+            print("Also checked  : " + extra_urls["assetUrl"])
     return 0 if verdict == "pass" else 1
 
 

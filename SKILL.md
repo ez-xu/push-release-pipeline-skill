@@ -125,8 +125,8 @@ python3 scripts/run_pipeline.py verify --repo <REPO> --tag <TAG>
 | 6 | time guard | any tracked file's modification time changed during the build |
 | 7 | version cross-check | the version in the file name disagrees with the version inside the binary |
 | 8 | tag occupancy | the tag already exists at a different commit |
-| 9 | publish | tag, push tag, confirm the remote tag resolves to this commit, create the release |
-| 10 | closed-loop read-back | the remote tag moved, or the re-downloaded asset is not byte-identical to the build |
+| 9 | publish | tag, push tag, confirm the remote tag resolves to this commit, create the release — with every file artifact.extraGlobs names, each of their asset links repaired |
+| 10 | closed-loop read-back | the remote tag moved, or any re-downloaded asset is not byte-identical to the build |
 | 11 | record | writes .ci/out/<run>/manifest.json, release-notes.md and build.log |
 
 A refusal at any step before publishing leaves nothing behind. A failure after the

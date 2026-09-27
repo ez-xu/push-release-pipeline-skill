@@ -75,6 +75,7 @@ everywhere else. The gate scans every file under .ci/hooks/ and names the line.
 | build.timeoutSeconds | per-step timeout, default 3600 |
 | artifact.root | directory the produced artifact lands in, relative to the repository root. Keep it to the one file that gets published: a second, differently named copy — an ASCII-named copy of a non-ASCII product name, for instance — belongs in its own directory, or artifact.glob matches both and the release is refused as ambiguous |
 | artifact.glob | must match exactly one file after a clean build |
+| artifact.extraGlobs | further files to publish in the same release — a flashing-ready hex next to a raw bin, say. Each pattern must match exactly one file under artifact.root (none means the build did not produce what the config promised, two is the same ambiguity artifact.glob refuses). Every extra file is uploaded with the release, has its asset link repaired, and is downloaded back and compared byte for byte exactly like the primary artifact. Unset means the release carries the primary artifact alone. |
 | artifact.versionRegex | a pattern with a named version group, applied to the artifact file name |
 | artifact.embeddedVersion | how to read the version out of the binary itself; see below |
 | tag.template | the tag name; must contain {version} |

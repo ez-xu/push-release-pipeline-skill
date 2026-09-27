@@ -186,6 +186,7 @@ def create_release(
     notes_file: Path,
     log: list[str],
     remote: str = "origin",
+    extra_assets: Sequence[Path] = (),
 ) -> None:
     """Create the release, pinning it to the commit that was actually built.
 
@@ -193,18 +194,23 @@ def create_release(
     GitLab resolves that invented tag from the repository default branch. The
     explicit ref and the verify flag remove that possibility: the release can only
     ever point at the commit this pipeline built.
+
+    extra_assets ride along in the same release as further positional files: a firmware
+    release often ships the raw image and a flashing-ready hex, and keeping them on one
+    release leaves a consumer a single place to look.
     """
     cli = require_cli(provider)
+    files = [str(artifact)] + [str(path) for path in extra_assets]
     if provider == "github":
         argv = [
-            cli, "release", "create", tag, str(artifact),
+            cli, "release", "create", tag, *files,
             "--title", release_name,
             "--notes-file", str(notes_file),
             "--verify-tag",
         ]
     else:
         argv = [
-            cli, "release", "create", tag, str(artifact),
+            cli, "release", "create", tag, *files,
             "--name", release_name,
             "--notes-file", str(notes_file),
             "--ref", commit,
@@ -219,7 +225,8 @@ def create_release(
     if proc.returncode != 0:
         raise PrpError("release creation failed for " + tag)
     repair_asset_link(
-        provider, repo, remote=remote, tag=tag, asset_name=artifact.name, log=log
+        provider, repo, remote=remote, tag=tag,
+        asset_names=[artifact.name] + [path.name for path in extra_assets], log=log,
     )
 
 
@@ -380,17 +387,20 @@ def repair_asset_link(
     *,
     remote: str,
     tag: str,
-    asset_name: str,
+    asset_names: Sequence[str],
     log: list[str],
 ) -> None:
-    """Give the published asset a URL that can be downloaded.
+    """Give every published asset a URL that can be downloaded.
 
-    The GitLab CLI uploads the file correctly but records the link URL without the
+    The GitLab CLI uploads the files correctly but records each link URL without the
     project namespace, and GitLab's asset download route redirects to exactly that
-    URL -- so the release asset 404s for every consumer, and for this pipeline's own
+    URL -- so the asset 404s for every consumer, and for this pipeline's own
     read-back. Rewriting the link to the API uploads route keeps the uploaded bytes
     and makes both the browser that clicks the release asset and the read-back see
-    the file. Left unchanged when the URL already resolves.
+    the file. Left unchanged when a URL already resolves.
+
+    Every name is repaired, not just the first: a release that ships a raw image and a
+    hex would otherwise leave the second file unreachable for everyone.
     """
     if provider != "gitlab":
         return
@@ -411,13 +421,16 @@ def repair_asset_link(
         log.append("[link] the release listing was not JSON; asset URL left unchanged")
         return
     links = (release.get("assets") or {}).get("links") or []
+    wanted = {str(name) for name in asset_names}
+    inspected = 0
     for link in links:
-        if str(link.get("name")) != asset_name:
+        if str(link.get("name")) not in wanted:
             continue
+        inspected += 1
         match = _UPLOAD_LINK_RE.match(str(link.get("url") or ""))
         if match is None:
             log.append("[link] asset URL needs no repair: " + str(link.get("url")))
-            return
+            continue
         fixed = (
             base
             + "/api/v4/projects/"
@@ -439,11 +452,12 @@ def repair_asset_link(
             if proc.stderr:
                 log.append(proc.stderr.rstrip())
             raise PrpError(
-                "could not point the release asset " + asset_name + " at a downloadable URL"
+                "could not point the release asset " + str(link.get("name"))
+                + " at a downloadable URL"
             )
         log.append("[link] asset URL repaired -> " + fixed)
-        return
-    log.append("[link] no asset link named " + asset_name + " to inspect")
+    if not inspected:
+        log.append("[link] no asset link named " + ", ".join(sorted(wanted)) + " to inspect")
 
 
 def delete_release(provider: str, repo: Path, tag: str, log: list[str]) -> int:
