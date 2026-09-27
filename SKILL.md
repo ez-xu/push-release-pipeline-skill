@@ -66,6 +66,47 @@ python3 scripts/run_pipeline.py release --repo <REPO> --dry-run
 
 A dry run stops before the tag is created, so it never exercises the upload, the asset link or the read-back: passing one is not evidence that a release will succeed. references/team-adoption.md shows how to exercise that path with a throwaway release.
 
+## Publishing by hand, without a push
+
+The hook is optional and is **off by default** (see Gotchas). Setup also writes a
+double-clickable console next to the pipeline:
+
+    .ci/release.bat          (Windows; CRLF; ASCII by default, GBK when asked for zh;
+                              no path baked in - it resolves its own directory)
+
+Double-clicking it opens a menu, so nobody has to remember a command or be told
+what the pipeline is:
+
+    1) Check + release     readiness report, then a confirmed real release
+    2) Check only          read-only; publishes nothing
+    3) Dry run             build + version cross-check, stop before publishing
+    4) Install push hook   every git push to the release branch triggers a release
+    5) Remove push hook    back to manual releases
+    6) Verify a release    re-check an already published release
+    Q) Quit
+
+The menu re-reads the hook state every round, so turning it on or off is visible
+immediately. Every choice maps to a `run_pipeline.py` subcommand: the console resolves
+an interpreter and forwards, nothing else. The same commands work as arguments for
+scripts and non-Windows hosts:
+
+    .ci/release.bat check | dry-run | release [-y] | verify --tag T | hook on|off
+
+On a host with no batch file, call the entry point directly:
+
+    python .ci/lib/run_pipeline.py check|release|verify|install-hook|uninstall-hook|hook-status --repo .
+
+The console is written in English by default, and that copy is pure ASCII so it
+displays correctly on any code page. For a team that wants it in Chinese, ask setup
+for the Chinese copy:
+
+    python3 .ci/lib/run_pipeline.py setup --repo . --console-lang zh
+
+It is the same console - only the display strings differ - written as GBK, and the
+template starts it with `chcp 936` so the bytes and the console agree. Re-running
+setup to switch languages is safe: without `--force` it keeps the existing
+config.json and re-vendors .ci/lib without clearing it.
+
 To re-verify a release that is already published, without building anything:
 
 ```bash
@@ -92,6 +133,19 @@ A refusal at any step before publishing leaves nothing behind. A failure after t
 tag exists triggers a rollback that deletes the release, the remote tag and the
 local tag, so the next push starts from a consistent state.
 
+## Handing over the link
+
+A successful release and a later `verify` both end by printing the two URLs worth
+having, and record them in the run next to the artifact hash:
+
+    Release page : https://host/group/project/-/releases/V1.2.3
+    Release file : https://host/group/project/-/releases/V1.2.3/downloads/<asset>
+
+Both are derived from the remote without an API call, which is what lets verify print
+the same pair for a release published days ago, and why the run record carries them.
+A remote with no link shape - a local path, say - contributes nothing and prints
+nothing, rather than a URL that 404s.
+
 ## The standard this enforces
 
 A release counts as successful only when all three hold at once:
@@ -113,18 +167,33 @@ Anything less is reported as a failed release, not a successful one.
 4. Report a refusal as a refusal. Exit code 2 means nothing was published and the
    repair is named; exit code 1 means a partial publication was rolled back.
 5. When the pipeline runs from the hook, a failure does not block the code push
-   unless the config sets hook.mode to gate.
-6. Never commit a host path. .ci/config.json is shared by every clone, so it may
+   unless the config sets hook.mode to gate. Install the hook only on request: it is
+   absent in a fresh clone and stays absent unless someone asks for it.
+6. Where the project's own code goes: everything the skill writes under .ci/ is
+   generic, so any project-specific implementation — the build wrapper and the
+   version read-back that artifact.embeddedVersion calls — belongs in .ci/lib/
+   alongside the vendored modules, never loose at the .ci/ root. Two consequences
+   the implementation must respect: vendor_lib() copies its modules and never clears
+   .ci/lib (a rmtree there would delete the project's module on the next setup), and
+   config.json reaches that module through {repo}/.ci/lib/<project>_project.py so the
+   committed config still carries no host path.
+7. Never commit a host path. .ci/config.json is shared by every clone, so it may
    name the build tools only through the {qmake}, {make} and {makeBin} tokens and
    may reach the repository only through {repo}. Anything bound to one machine —
    a toolchain location, an interpreter path, a home directory — belongs in
    .ci/config.local.json, which is git-ignored and regenerated per machine by
    setup. The rule covers every committed CI file, not only the config: the hook
-   resolves its interpreter from PATH (or PRP_PYTHON) at run time, so no
-   interpreter path is ever baked into it. A committed CI file carrying an
-   absolute host path is refused before anything is built, because it would
-   either fail on every other clone or silently build with whatever toolchain
-   that host happens to have.
+   and the .ci/release.bat console both resolve their interpreter from PATH (or
+   PRP_PYTHON) at run time, so no interpreter path is ever baked into either. The
+   portability gate scans .ci/config.json, every file under .ci/hooks/ and the
+   console, and refuses a committed CI file carrying an absolute host path before
+   anything is built, because it would either fail on every other clone or
+   silently build with whatever toolchain that host happens to have.
+8. A run describes itself with what it produced. release records a build, verify
+   records a re-check of someone else's, so the run record has to render the fields the
+   run actually has and name the ones that are absent. Render a record from the fields
+   the run actually produced rather than indexing the release shape: a verification
+   that succeeds must not die with a KeyError while writing its own record.
 
 ## Gotchas
 
@@ -183,7 +252,35 @@ Anything less is reported as a failed release, not a successful one.
 - Two things in the config look like levers and are not. {artifactPath} is not a token: only {repo}, the toolchain tokens, {PATH}/{pathsep} in build.env and the release-side tokens in tag.template and release.name are expanded, so a command argument asking for {artifactPath} receives that literal text and the command must locate the artifact itself through artifact.root and artifact.glob. release.assetLabel is written by setup and read by nothing: the published asset is always named after the artifact file, so an ASCII artifact file name is the only way to choose it.
 - A dry run is not a rehearsal of publishing. release --dry-run stops before the tag is created, so it cannot reach the upload, the asset link or the read-back, and a repository can pass a dry run and still fail its first real release. Only a real run, or verify against a release that already exists, covers that path.
 - On a private instance a release asset is not anonymously reachable, and the refusal is quiet: an unauthenticated GET of the asset URL can answer 200 with the sign-in page, while the API route answers 401 or 404. A read-back that judges by status code accepts a login page as a successful download, so it must compare the bytes (size and SHA-256) and never the status.
-- Committed CI files have to survive the console and the platform. Keep every message a build step prints ASCII: CMake and Ninja write raw UTF-8 into a legacy code page such as cp936 or cp1252 and the transcript becomes mojibake, while Python's console API is unaffected. Pin line endings too: .ci/hooks/pre-push is executed by MSYS bash under Git for Windows and a CRLF copy does not run, while a CRLF-sensitive .bat or .cmd breaks when core.autocrlf rewrites it, so .gitattributes should force eol=lf for the hook, *.sh and *.py and eol=crlf for *.bat and *.cmd.
+- setup has to survive being re-run from the vendored copy. There, .ci/lib is both the
+  source and the destination of the vendor step, so copying a module onto itself must
+  count as "already in place": shutil.copyfile answers that with SameFileError, and the
+  old code let it abort setup half way through - after the config was validated and
+  before the console was written. The console templates have to travel with the runtime
+  for the same reason, since a clone re-runs setup from .ci/lib and setup looks for the
+  template next to itself.
+- The push hook is off by default, and that is a property of git, not a second
+  switch: .git/hooks/ is per-clone and never committed, so a fresh clone has no hook
+  and will not get one unless someone asks. Setup must not install it silently, and
+  the manual console must never need it. Turning it on is an explicit act - the
+  console's menu and `hook on` are the same code path - and turning it off must
+  leave a hook the skill did not write completely alone rather than replacing or
+  deleting it.
+- A menu that fires its default action on empty input is a trap, and a menu that
+  re-reads stdin after EOF spins forever. Read the choice, treat an empty read or a
+  `set /p` errorlevel as "no choice" rather than as the default, and bound the number
+  of consecutive empty reads before quitting. `set /p` is also not a line reader when
+  stdin is redirected: it can hand back several lines at once, and a value with an
+  embedded newline makes the next `if "%VAR%"==...` a multi-line statement that cmd
+  rejects with "The syntax of the command is incorrect."
+- Capturing a quoted interpreter with `for /f` in a .bat silently yields nothing:
+  when the inner command line starts with a quote, cmd strips its first and last
+  quote, so `for /f ... in ('"%PY%" "%ENTRY%" hook-status')` returns an empty string
+  while the same line without quotes works. Send the output through a temp file
+  instead - that also survives an interpreter path containing spaces. And compare the
+  state it prints case-insensitively: the query prints lowercase, and a menu that
+  compares uppercase simply prints nothing at all.
+- Committed CI files have to survive the console and the platform. Keep every message a build step prints ASCII: CMake and Ninja write raw UTF-8 into a legacy code page such as cp936 or cp1252 and the transcript becomes mojibake, while Python's console API is unaffected. Pin line endings too: .ci/hooks/pre-push is executed by MSYS bash under Git for Windows and a CRLF copy does not run, while a CRLF-sensitive .bat or .cmd breaks when core.autocrlf rewrites it, so .gitattributes should force eol=lf for the hook, *.sh and *.py and eol=crlf for *.bat and *.cmd. The same reasoning explains why the default .ci/release.bat is ASCII: a non-ASCII console is only correct together with the code page that matches it, so the Chinese copy is GBK *and* starts with chcp 936, and the two have to be changed together.
 
 - A pipeline that re-lists the build commands duplicates the project's own build script, and the two drift: the release then builds something the developer never ran. When the repository already has a build entry point (build.bat, a Makefile, a script), leave build.configure empty and call that entry from build.build, passing the pipeline's isolation through environment variables or extra arguments the script already honours. Keep one source of truth for the directories as well - a thin wrapper can derive its build directory from artifact.root instead of repeating it.
 - Deciding "the artifact this build produced" by file name alone breaks on a rebuild that produces the same name: the same commit on the same day yields a byte-identical file with an identical name, so a name-based diff reports zero new files and the run stops on a complete build. Treat a file as this build's output when it did not exist before the build or its mtime is not older than the build start, and require exactly one such file.
@@ -203,6 +300,14 @@ Anything less is reported as a failed release, not a successful one.
   any host path so it means the same thing in every clone
 - .ci/config.local.json — this machine's toolchain pin; written by setup, git-ignored,
   never committed
-- .ci/lib/ — the vendored runtime, so a clone works without this skill installed
+- .ci/lib/ — the vendored runtime, so a clone works without this skill installed.
+  Also where the adopting project keeps its own build and version read-back module:
+  see Required behavior, "Where the project's own code goes"
 - .ci/hooks/pre-push — the hook source, installed into .git/hooks by install-hook
+- .ci/release.bat — the double-clickable manual console; resolves an interpreter from
+  PATH and forwards to .ci/lib/run_pipeline.py, so no path is baked into it. setup
+  copies it byte for byte from templates/console-en.bat (ASCII, default) or
+  templates/console-zh.bat (GBK with chcp 936, --console-lang zh), which are checked in
+  as a real .bat per language rather than assembled from a string at run time -
+  templates/*.bat is pinned `-text` so no checkout rewrites them
 - .ci/out/<run>/ — per-run build log, release notes and provenance manifest

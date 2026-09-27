@@ -1,0 +1,19 @@
+{
+  "id": "correction-20260927-100500-c3d4e5f6",
+  "reported_at": "2026-09-27T10:05:00Z",
+  "correction": "A successful verify crashed while writing its own record. verify records a subset of what release records, but the run record renderer indexed project, tree, branch, size and versionSource directly, so the re-check died with KeyError: 'project' after the read-back had already run - and because the crash happened before the final print, the command returned a traceback instead of the result. Render a record from the fields the run actually produced, and say which are not recorded rather than assuming the release shape; a verification that succeeds must not fail while describing itself.",
+  "proposed_skill_edit": {
+    "file": "SKILL.md",
+    "section": "Required behavior",
+    "change": "Add rule 8: a run describes itself with what it produced - release records a build and verify records a re-check, so the run record must render the fields the run actually has and name the absent ones instead of indexing the release shape."
+  },
+  "regression_test": {
+    "type": "knowledge-retention",
+    "file": "SKILL.md",
+    "must_contain": "A run describes itself with what it produced."
+  },
+  "version": {
+    "recommended_bump": "patch",
+    "reason": "Correction from real use; preserves a working verify path."
+  }
+}

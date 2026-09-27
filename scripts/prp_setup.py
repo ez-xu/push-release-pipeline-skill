@@ -22,11 +22,23 @@ from prp_repo import PrpError, branch_name, git, remote_url, repo_root, run
 CONFIG_REL = ".ci/config.json"
 LIB_REL = ".ci/lib"
 HOOK_REL = ".ci/hooks/pre-push"
+CONSOLE_REL = ".ci/release.bat"
+# The console ships as a real file per language, not as a string built at run time:
+# what is checked in is byte-for-byte what lands in the repository, so there is no
+# second place for the code page decision to drift out of step with the file.
+CONSOLE_TEMPLATES = {"en": "console-en.bat", "zh": "console-zh.bat"}
 OUTPUT_REL = ".ci/out"
+# Every file this skill writes into .ci/ that is committed and executed carries this
+# marker, so "is this hook ours?" never depends on a string spelled twice.
+HOOK_MARKER = "push-release-pipeline-skill"
 # Entries are written verbatim; a trailing slash marks a directory pattern, and a
 # directory-only pattern does not match a file.
 IGNORE_ENTRIES = (OUTPUT_REL + "/", LOCAL_CONFIG_REL, "__pycache__/")
 
+# The vendored runtime. vendor_lib() COPIES these and never clears .ci/lib, because
+# .ci/lib is also where the adopting project keeps its own build and version
+# read-back module (see SKILL.md, "Where the project's own code goes"). Adding a
+# rmtree here would silently delete that module on the next setup.
 VENDOR_MODULES = (
     "run_pipeline.py",
     "prp_repo.py",
@@ -95,6 +107,7 @@ fi
 
 exec "$PY" "$ENTRY" release --repo "$ROOT" --remote "$REMOTE_NAME" --triggered-by-hook
 """
+
 
 
 def default_config() -> dict[str, Any]:
@@ -221,7 +234,7 @@ def _walk_strings(value: Any, prefix: str = "") -> Iterator[tuple[str, str]]:
 
 
 def _hook_host_path_problems(rel: str, text: str) -> list[str]:
-    """Report every host-specific path that appears in a committed hook script."""
+    """Report every host-specific path in a committed entry point (hook or console)."""
     problems: list[str] = []
     for number, line in enumerate(text.splitlines(), 1):
         for pattern, label in _ABS_PATTERNS:
@@ -235,8 +248,8 @@ def _hook_host_path_problems(rel: str, text: str) -> list[str]:
                 + label
                 + " ("
                 + line.strip()
-                + "), so the hook only runs on the machine that wrote it and silently "
-                "skips the pipeline on every other clone. Resolve the interpreter from "
+                + "), so it only works on the machine that wrote it and silently fails "
+                "or skips the pipeline on every other clone. Resolve the interpreter from "
                 "PATH (or the PRP_PYTHON override) at run time instead of baking in an "
                 "absolute path."
             )
@@ -247,9 +260,9 @@ def _hook_host_path_problems(rel: str, text: str) -> list[str]:
 def portability_problems(repo: Path) -> list[str]:
     """Host paths in the committed CI files cannot survive another machine.
 
-    The config and the hook are both committed, so both are checked: a hook that
-    hard-codes the setup machine's interpreter is exactly as unshippable as a
-    config that hard-codes its compiler.
+    The config and the entry points (.ci/hooks/ and the .ci/release.bat console) are
+    all committed, so all are checked: a console that hard-codes the setup machine's
+    interpreter is exactly as unshippable as a config that hard-codes its compiler.
     """
     problems: list[str] = []
     path = repo / CONFIG_REL
@@ -278,18 +291,24 @@ def portability_problems(repo: Path) -> list[str]:
                         + " (git-ignored, regenerated per machine by setup)."
                     )
                     break
+    # The committed entry points are scanned as well: a console that hard-codes the
+    # setup machine's interpreter is exactly as unshippable as a config that hard-codes
+    # its compiler.
+    committed_scripts: list[Path] = []
     hooks_dir = repo / ".ci" / "hooks"
     if hooks_dir.is_dir():
-        for hook in sorted(hooks_dir.iterdir()):
-            if not hook.is_file():
-                continue
-            try:
-                text = hook.read_text(encoding="utf-8", errors="replace")
-            except OSError:
-                continue
-            problems.extend(
-                _hook_host_path_problems(hook.relative_to(repo).as_posix(), text)
-            )
+        committed_scripts.extend(sorted(p for p in hooks_dir.iterdir() if p.is_file()))
+    console = repo / CONSOLE_REL
+    if console.is_file():
+        committed_scripts.append(console)
+    for script in committed_scripts:
+        try:
+            text = script.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        problems.extend(
+            _hook_host_path_problems(script.relative_to(repo).as_posix(), text)
+        )
     return problems
 
 
@@ -461,9 +480,39 @@ def vendor_lib(repo: Path, source_dir: Path) -> list[str]:
     for name, src in sources:
         if not src.is_file():
             continue
-        shutil.copyfile(src, target / name)
-        copied.append(name)
+        if _copy_if_distinct(src, target / name):
+            copied.append(name)
+    # The console templates travel with the runtime: a clone re-runs setup from
+    # .ci/lib, and setup has to find the template next to itself there. The same
+    # two-layout search as console_template_path(), so a vendored re-run finds them
+    # rather than silently vendoring nothing.
+    templates = next(
+        (d for d in (source_dir / "templates", source_dir.parent / "templates") if d.is_dir()),
+        None,
+    )
+    if templates is not None:
+        dest = target / "templates"
+        dest.mkdir(parents=True, exist_ok=True)
+        for src in sorted(templates.iterdir()):
+            if src.is_file() and _copy_if_distinct(src, dest / src.name):
+                copied.append("templates/" + src.name)
     return copied
+
+
+def _copy_if_distinct(src: Path, dst: Path) -> bool:
+    """Copy src onto dst unless they are already the same file.
+
+    setup is routinely re-run from the vendored copy, where source and destination are
+    the same path: shutil.copyfile answers that with SameFileError, which used to abort
+    setup half way through. "Already in place" is a success, not an error.
+    """
+    try:
+        if src.resolve() == dst.resolve():
+            return True
+    except OSError:
+        pass
+    shutil.copyfile(src, dst)
+    return True
 
 
 def write_hook(repo: Path, python_executable: str | None = None) -> Path:
@@ -480,20 +529,40 @@ def write_hook(repo: Path, python_executable: str | None = None) -> Path:
     return path
 
 
+def hook_path(repo: Path) -> Path:
+    """Where this clone keeps its pre-push hook. Never committed, never cloned."""
+    git_dir = Path(git(repo, "rev-parse", "--git-dir"))
+    if not git_dir.is_absolute():
+        git_dir = repo / git_dir
+    return git_dir / "hooks" / "pre-push"
+
+
+def hook_state(repo: Path) -> str:
+    """One of installed / missing / foreign - read, never inferred from the config.
+
+    The manual console asks for this through `run_pipeline.py hook-status` instead of
+    re-implementing the marker check, so "is this hook ours?" has a single answer.
+    """
+    target = hook_path(repo)
+    if not target.is_file():
+        return "missing"
+    try:
+        text = target.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return "foreign"
+    return "installed" if HOOK_MARKER in text else "foreign"
+
+
 def install_hook(repo: Path, log: list[str]) -> Path:
     """Copy the hook into .git/hooks/pre-push, refusing to clobber a foreign one."""
     source = repo / HOOK_REL
     if not source.is_file():
         raise PrpError("no hook at " + str(source) + "; run setup first")
-    git_dir = Path(git(repo, "rev-parse", "--git-dir"))
-    if not git_dir.is_absolute():
-        git_dir = repo / git_dir
-    hooks = git_dir / "hooks"
-    hooks.mkdir(parents=True, exist_ok=True)
-    target = hooks / "pre-push"
+    target = hook_path(repo)
+    target.parent.mkdir(parents=True, exist_ok=True)
     if target.is_file():
         existing = target.read_text(encoding="utf-8", errors="replace")
-        if "push-release-pipeline-skill" not in existing:
+        if HOOK_MARKER not in existing:
             raise PrpError(
                 "an unrelated pre-push hook already exists at "
                 + str(target)
@@ -509,17 +578,54 @@ def install_hook(repo: Path, log: list[str]) -> Path:
 
 
 def uninstall_hook(repo: Path, log: list[str]) -> bool:
-    git_dir = Path(git(repo, "rev-parse", "--git-dir"))
-    if not git_dir.is_absolute():
-        git_dir = repo / git_dir
-    target = git_dir / "hooks" / "pre-push"
-    if target.is_file() and "push-release-pipeline-skill" in target.read_text(
+    target = hook_path(repo)
+    if target.is_file() and HOOK_MARKER in target.read_text(
         encoding="utf-8", errors="replace"
     ):
         target.unlink()
         log.append("[hook] removed " + str(target))
         return True
     return False
+
+
+def console_template_path(lang: str) -> Path:
+    """Where the checked-in console for this language lives.
+
+    Two layouts have to work: the skill itself (scripts/../templates) and a vendored
+    clone re-running setup (.ci/lib/templates), because setup is routinely run from
+    .ci/lib after the repository has been adopted.
+    """
+    if lang not in CONSOLE_TEMPLATES:
+        raise PrpError(
+            "unknown console language " + repr(lang) + "; use one of "
+            + ", ".join(sorted(CONSOLE_TEMPLATES))
+        )
+    name = CONSOLE_TEMPLATES[lang]
+    here = Path(__file__).resolve().parent
+    for candidate in (here / "templates", here.parent / "templates"):
+        path = candidate / name
+        if path.is_file():
+            return path
+    raise PrpError(
+        "console template " + name + " not found next to " + str(here)
+        + "; the skill package is incomplete (templates/ is missing)"
+    )
+
+
+def write_console(repo: Path, lang: str = "en") -> Path:
+    """Copy the console for this language into the repository.
+
+    The templates are stored as the bytes that belong in the repository - ASCII for
+    en, GBK for zh - so this is a byte copy, and the code page note in the file (zh
+    starts with chcp 936) is the same text a reader sees here. CRLF comes from the
+    template: cmd.exe's batch parser needs it, and a LF-only copy falls apart into
+    bogus commands. .gitattributes should pin *.bat to eol=crlf in the adopting
+    repository too, so a checkout on another machine cannot rewrite the endings.
+    """
+    path = repo / CONSOLE_REL
+    path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(console_template_path(lang), path)
+    return path
 
 
 def ensure_gitignore(repo: Path, entry: str) -> bool:

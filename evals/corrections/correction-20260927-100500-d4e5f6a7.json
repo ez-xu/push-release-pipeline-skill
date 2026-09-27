@@ -1,0 +1,19 @@
+{
+  "id": "correction-20260927-100500-d4e5f6a7",
+  "reported_at": "2026-09-27T10:06:00Z",
+  "correction": "A release that does not hand over its own URL makes everyone reconstruct it by hand from the tag, and the reconstruction is easy to get wrong (the browser route wants real slashes while the API route wants the project path percent-encoded, so using the API form in a link produces a URL that cannot be clicked). Print the release page and the direct link to the published file at the end of both a real release and a verify, derive both from the remote without an API call so a re-check prints the same pair, record them in the run, and print nothing for a remote with no link shape rather than a URL that 404s.",
+  "proposed_skill_edit": {
+    "file": "SKILL.md",
+    "section": "Handing over the link",
+    "change": "Add the corrected behavior: a successful release and a later verify print the release page and the direct link to the published file, derived from the remote without an API call and recorded in the run."
+  },
+  "regression_test": {
+    "type": "knowledge-retention",
+    "file": "SKILL.md",
+    "must_contain": "Release file : "
+  },
+  "version": {
+    "recommended_bump": "minor",
+    "reason": "Adds a user-facing output to release and verify."
+  }
+}

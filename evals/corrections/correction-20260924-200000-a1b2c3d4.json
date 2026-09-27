@@ -1,0 +1,19 @@
+{
+  "id": "correction-20260924-200000-a1b2c3d4",
+  "reported_at": "2026-09-24T12:00:00Z",
+  "correction": "Project-specific pipeline code had nowhere to live, so it ended up as loose scripts at the .ci/ root. Put it in .ci/lib/ instead, next to the vendored runtime: vendor_lib() copies its own modules and never clears the directory, so a project module placed there survives re-running setup, while a file at the .ci/ root is neither protected nor obviously the project's. config.json then reaches it as {repo}/.ci/lib/<project>_project.py, which keeps the committed config free of host paths. The same change adds the double-clickable console at .ci/release.bat: setup writes it, it is ASCII and CRLF, and it resolves its interpreter from PATH at run time so the committed file works in every clone.",
+  "proposed_skill_edit": {
+    "file": "SKILL.md",
+    "section": "Required behavior",
+    "change": "Add rule 6: Where the project's own code goes - everything the skill writes under .ci/ is generic, so the project's build wrapper and version read-back belong in .ci/lib/ alongside the vendored modules, never loose at the .ci/ root; vendor_lib() must keep copying and never clearing .ci/lib."
+  },
+  "regression_test": {
+    "type": "knowledge-retention",
+    "file": "SKILL.md",
+    "must_contain": "vendor_lib() copies its modules and never clears"
+  },
+  "version": {
+    "recommended_bump": "minor",
+    "reason": "Adds a file the skill writes and a rule about where project code lives."
+  }
+}

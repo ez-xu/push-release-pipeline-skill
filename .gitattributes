@@ -1,0 +1,7 @@
+# The console templates under templates/ are stored as the exact bytes that belong in
+# a repository: console-en.bat is ASCII, console-zh.bat is GBK (it opens with
+# chcp 936). Neither may be rewritten on checkout - a line-ending or encoding pass
+# would corrupt the GBK one and silently produce a console that prints mojibake.
+# write_console() copies them byte for byte, so what ships here is what lands in
+# .ci/release.bat.
+templates/*.bat  -text

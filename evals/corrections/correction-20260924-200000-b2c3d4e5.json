@@ -1,0 +1,19 @@
+{
+  "id": "correction-20260924-200000-b2c3d4e5",
+  "reported_at": "2026-09-24T12:05:00Z",
+  "correction": "A .bat menu has three failure modes that do not show up until someone doubles-click it. Capturing a quoted interpreter with for /f returns an empty string, because cmd strips the first and last quote of an inner command line that starts with a quote - the same line unquoted works, and a temp file works for both. The hook state must be compared case-insensitively, because the query prints lowercase and a menu comparing uppercase prints no state line at all. And empty input must not mean the default action: set /p can hand back several lines when stdin is redirected (a value with an embedded newline makes the next if a multi-line statement cmd rejects), an exhausted stdin would otherwise spin the menu forever, and a menu whose default is 'publish' would fire it on a stray Enter.",
+  "proposed_skill_edit": {
+    "file": "SKILL.md",
+    "section": "Gotchas",
+    "change": "Add the .bat menu gotchas: the push hook is off by default because .git/hooks/ is per-clone; empty input is not a choice and consecutive empty reads must be bounded; a quoted interpreter cannot be captured with for /f; the captured state must be compared case-insensitively."
+  },
+  "regression_test": {
+    "type": "knowledge-retention",
+    "file": "SKILL.md",
+    "must_contain": "The push hook is off by default, and that is a property of git, not a second"
+  },
+  "version": {
+    "recommended_bump": "minor",
+    "reason": "Adds a user-facing entry point and the failure modes it must avoid."
+  }
+}

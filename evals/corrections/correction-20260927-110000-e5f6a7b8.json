@@ -1,0 +1,19 @@
+{
+  "id": "correction-20260927-110000-e5f6a7b8",
+  "reported_at": "2026-09-27T11:00:00Z",
+  "correction": "setup ran from the vendored copy - which is exactly how a colleague re-runs it after cloning, and what the docs tell them to type - aborted with shutil.SameFileError: .ci/lib is both the source and the destination of the vendor step, so copying a module onto itself is the normal case there, not an error. The crash landed after the config step and before the console was written, so the run looked half-done for no reason. Treat 'already in place' as success, and let the console templates travel with the runtime, because setup looks for the template next to itself and a clone has no copy of the skill.",
+  "proposed_skill_edit": {
+    "file": "SKILL.md",
+    "section": "Gotchas",
+    "change": "Add the corrected behavior: setup must survive being re-run from the vendored copy - copying a module onto itself counts as already in place, and the console templates travel with the runtime."
+  },
+  "regression_test": {
+    "type": "knowledge-retention",
+    "file": "SKILL.md",
+    "must_contain": "setup has to survive being re-run from the vendored copy."
+  },
+  "version": {
+    "recommended_bump": "patch",
+    "reason": "Correction from real use; makes the documented re-run path work."
+  }
+}

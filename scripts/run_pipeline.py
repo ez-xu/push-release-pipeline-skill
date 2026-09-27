@@ -48,6 +48,8 @@ from prp_publish import (  # noqa: E402
     detect_provider,
     download_asset,
     push_tag,
+    release_asset_names,
+    release_urls,
     require_cli,
     require_contract,
     rollback,
@@ -71,12 +73,14 @@ from prp_repo import (  # noqa: E402
 )
 from prp_setup import (  # noqa: E402
     CONFIG_REL,
+    CONSOLE_REL,
     HOOK_REL,
     IGNORE_ENTRIES,
     LOCAL_CONFIG_REL,
     OUTPUT_REL,
     default_config,
     ensure_gitignore,
+    hook_state,
     install_hook,
     is_ignored,
     load_config,
@@ -87,6 +91,7 @@ from prp_setup import (  # noqa: E402
     uninstall_hook,
     validate_config,
     vendor_lib,
+    write_console,
     write_hook,
 )
 
@@ -167,28 +172,64 @@ def _write(path: Path, text: str) -> None:
     path.write_text(text, encoding="utf-8", newline="\n")
 
 
+def _print_release_urls(urls: Mapping[str, str]) -> None:
+    """Hand over the links a human wants: the release page and the file itself.
+
+    Both a successful release and a later verify print them, so the link arrives at
+    the moment it is meaningful instead of being reconstructed by hand from the tag.
+    A remote with no link shape yields an empty mapping, which prints nothing rather
+    than a URL that 404s.
+    """
+    if not urls:
+        return
+    print("")
+    print("Release page : " + urls["releaseUrl"])
+    print("Release file : " + urls["assetUrl"])
+
+
 def _notes_markdown(run: Run, info: Mapping[str, Any]) -> str:
+    # verify() records a subset of what release() does, so render what is there instead
+    # of indexing keys that run never produced: a successful re-check must not die with
+    # a KeyError while writing its own record.
+    def value(key: str, default: str = "(not recorded)") -> str:
+        return str(info.get(key, default))
+
     lines = [
-        "# " + str(info["tag"]),
+        "# " + value("tag"),
         "",
-        "- Project: " + str(info["project"]),
-        "- Commit: " + str(info["commit"]),
-        "- Tree: " + str(info["tree"]),
-        "- Branch: " + str(info["branch"]),
-        "- Artifact: " + str(info["artifactName"]),
-        "- Artifact SHA-256: " + str(info["sha256"]),
-        "- Bytes: " + str(info["size"]),
-        "- Version source: " + str(info["versionSource"]),
-        "- Built at: " + str(info["builtAt"]),
+        "- Project: " + value("project"),
+        "- Commit: " + value("commit"),
+        "- Tree: " + value("tree"),
+        "- Branch: " + value("branch"),
+        "- Artifact: " + value("artifactName"),
+        "- Artifact SHA-256: " + value("sha256"),
+        "- Bytes: " + value("size"),
+        "- Version source: " + value("versionSource"),
+        "- Built at: " + value("builtAt"),
+        "",
+        "## Where it is",
+        "",
+        "- Release page: " + value("releaseUrl", "(not derivable from this remote)"),
+        "- Release file: " + value("assetUrl", "(not derivable from this remote)"),
         "",
         "## Provenance",
         "",
-        "This artifact was produced by a clean build from commit " + str(info["commit"]) + ".",
-        "The tracked-file manifest, HEAD, and work-tree status were identical before and after",
-        "the build, and no tracked file was written during the build window.",
-        "",
-        "The version was read back out of the produced artifact rather than recomputed, so the",
-        "tag cannot disagree with the binary it names.",
+    ]
+    if "tree" in info:
+        lines += [
+            "This artifact was produced by a clean build from commit " + value("commit") + ".",
+            "The tracked-file manifest, HEAD, and work-tree status were identical before and after",
+            "the build, and no tracked file was written during the build window.",
+            "",
+            "The version was read back out of the produced artifact rather than recomputed, so the",
+            "tag cannot disagree with the binary it names.",
+        ]
+    else:
+        lines += [
+            "This is a re-check of an already published release, not a build: the build",
+            "provenance lives in the run record that published it.",
+        ]
+    lines += [
         "",
         "## Closed-loop verification",
         "",
@@ -251,6 +292,12 @@ def cmd_setup(args: argparse.Namespace) -> int:
     print("Vendored " + str(len(copied)) + " module(s) into " + str(repo / ".ci/lib"))
     hook = write_hook(repo, sys.executable)
     print("Wrote " + str(hook.relative_to(repo)))
+    console = write_console(repo, args.console_lang)
+    print(
+        "Wrote "
+        + str(console.relative_to(repo))
+        + "  (double-click it to publish by hand; " + args.console_lang + " messages)"
+    )
     for entry in IGNORE_ENTRIES:
         if ensure_gitignore(repo, entry):
             print("Added " + entry + " to .gitignore")
@@ -264,7 +311,8 @@ def cmd_setup(args: argparse.Namespace) -> int:
         print("Hook not installed yet. Review the config, then run:")
         print("  python " + str(repo / ".ci/lib/run_pipeline.py") + " install-hook --repo " + str(repo))
     print("")
-    print("Dry run the pipeline with:")
+    print("Publish by hand (no push, no hook):")
+    print("  double-click " + str(repo / CONSOLE_REL))
     print("  python " + str(repo / ".ci/lib/run_pipeline.py") + " release --repo " + str(repo) + " --dry-run")
     return 0
 
@@ -287,6 +335,17 @@ def cmd_uninstall_hook(args: argparse.Namespace) -> int:
             print(line)
         return 0
     print("no push-release-pipeline hook was installed")
+    return 0
+
+
+def cmd_hook_status(args: argparse.Namespace) -> int:
+    """Print exactly one token: installed, missing or foreign.
+
+    A query, so it always exits 0. The manual console reads this instead of
+    re-implementing the marker check, which keeps "is this hook ours?" in one place -
+    and it is the reason the console does not have to shell out to git at all.
+    """
+    print(hook_state(repo_root(args.repo)))
     return 0
 
 
@@ -611,7 +670,8 @@ def cmd_release(args: argparse.Namespace) -> int:
         verify_cfg = config.get("verify") or {}
         if verify_cfg.get("readBack", True):
             verdict, detail, extra = _read_back(
-                run, provider, repo, remote, tag, before.head, artifact, sha
+                run, provider, repo, remote, tag, before.head,
+                asset_name=artifact.name, expected_sha=sha, local_artifact=artifact,
             )
             info.update(extra)
             if verdict != "pass":
@@ -651,11 +711,15 @@ def cmd_release(args: argparse.Namespace) -> int:
         return 1
 
     info["published"] = True
+    info["runKind"] = "release"
+    urls = release_urls(provider, repo, remote, tag, artifact.name)
+    info.update(urls)
     _save_outputs(run, info)
     print("")
     print("Released " + tag + " from " + short(before.head) + " with " + artifact.name)
     print("  sha256 " + sha)
     print("  output " + str(run.out_dir))
+    _print_release_urls(urls)
     return 0
 
 
@@ -666,14 +730,21 @@ def _read_back(
     remote: str,
     tag: str,
     commit: str,
-    artifact: Path,
-    sha: str,
+    *,
+    asset_name: str,
+    expected_sha: str,
+    local_artifact: Path | None = None,
 ) -> tuple[str, str, dict[str, Any]]:
-    """Re-read what was actually published and compare it to what was built.
+    """Re-read what was actually published and compare it to what should be there.
 
     This is the closed-loop standard: the release is only successful if the remote
-    tag still resolves to the commit that was built, and the asset that a consumer
-    would download is byte-identical to the locally built artifact.
+    tag still resolves to the published commit, and the asset a consumer would
+    download is byte-identical to what was published.
+
+    The caller names the asset and the hash to expect. A release hands over what it
+    just built; verify hands over what the publishing run recorded, because a re-check
+    of an older release has no business involving whatever this clone happens to have
+    built since.
     """
     extra: dict[str, Any] = {}
     landed = remote_tag_commit(repo, remote, tag)
@@ -683,7 +754,7 @@ def _read_back(
         return (
             "fail",
             "read-back failed: remote tag " + tag + " resolves to " + short(landed)
-            + " but this build is from " + short(commit),
+            + " but this run expects " + short(commit),
             extra,
         )
 
@@ -692,7 +763,7 @@ def _read_back(
     for attempt in range(1, 6):
         try:
             fetched = download_asset(
-                provider, repo, tag=tag, asset_name=artifact.name, dest_dir=dest, log=run.log
+                provider, repo, tag=tag, asset_name=asset_name, dest_dir=dest, log=run.log
             )
             break
         except PrpError as exc:
@@ -707,18 +778,19 @@ def _read_back(
     fetched_sha = sha256_file(fetched)
     extra["readBackSha256"] = fetched_sha
     extra["readBackPath"] = str(fetched)
-    if fetched_sha != sha:
-        extra["readBackVerdict"] = "fail (published bytes differ from the build)"
+    if fetched_sha != expected_sha:
+        source = "the build produced" if local_artifact is not None else "the publishing run recorded"
+        extra["readBackVerdict"] = "fail (published bytes differ from what was expected)"
         return (
             "fail",
             "read-back failed: the published asset hashes to " + fetched_sha[:16]
-            + "... but the build produced " + sha[:16] + "...",
+            + "... but " + source + " " + expected_sha[:16] + "...",
             extra,
         )
     extra["readBackVerdict"] = "pass"
     return (
         "pass",
-        "remote tag -> " + short(landed) + "; downloaded asset matches the build byte for byte",
+        "remote tag -> " + short(landed) + "; downloaded asset matches the expected bytes byte for byte",
         extra,
     )
 
@@ -726,7 +798,60 @@ def _read_back(
 # --------------------------------------------------------------------------- verify
 
 
+def _published_record(repo: Path, tag: str, template: str) -> dict[str, Any] | None:
+    """The run record that published this tag, if this clone still has it.
+
+    verify re-checks a release somebody else published, so the asset name and the hash to
+    expect come from the record that publishing run wrote - never from the local build tree,
+    which holds whatever was built last. Taking the name from there is what made a re-check
+    of an older release fail with "yielded no downloadable asset named <newest local build>".
+
+    Two records are deliberately not eligible:
+      - a record written by a previous verify (runKind), because it describes a re-check
+        rather than a publication, and after the old bug it could carry a local artifact
+        name next to somebody else's tag;
+      - a record whose tag disagrees with the version it recorded, which is exactly the
+        signature of that old bug (tag V..._1ed4f5e9, artifact ..._d528a98d_...).
+    """
+    out_root = repo / OUTPUT_REL
+    if not out_root.is_dir():
+        return None
+    for manifest in sorted(out_root.glob("*/manifest.json"), reverse=True):
+        try:
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if (
+            data.get("tag") != tag
+            or not data.get("published")
+            or not data.get("artifactName")
+            or not data.get("sha256")
+            or str(data.get("runKind", "release")) != "release"
+        ):
+            continue
+        if "{version}" in template:
+            rendered = _render(template, {
+                "version": str(data.get("version") or ""),
+                "artifactName": str(data["artifactName"]),
+                "commit": str(data.get("commit") or ""),
+                "branch": str(data.get("branch") or ""),
+                "project": str(data.get("project") or ""),
+            })
+            if rendered != tag:
+                continue
+        data["recordPath"] = str(manifest)
+        return data
+    return None
+
+
 def cmd_verify(args: argparse.Namespace) -> int:
+    """Re-check a published release without building anything.
+
+    With --tag, everything is taken from the run record that published that tag: the asset
+    name, the hash it should have, and the commit the tag must still resolve to. Without
+    --tag, the tag is derived from the artifact this clone built last, which is the one case
+    where the local build tree is the right source.
+    """
     repo = repo_root(args.repo)
     config = load_config(repo)
     run = Run(repo, config)
@@ -734,24 +859,66 @@ def cmd_verify(args: argparse.Namespace) -> int:
     provider = detect_provider(remote_url(repo, remote))
     require_cli(provider)
     artifact_cfg = config.get("artifact") or {}
-    artifact, version = resolve_artifact(artifact_cfg, repo)
-    tag = args.tag or _render(
-        str((config.get("tag") or {}).get("template", "V{version}")),
-        {"version": version, "artifactName": artifact.name},
-    )
-    commit = args.commit or resolve_tag_commit(repo, tag) or ""
-    sha = sha256_file(artifact)
+    tag_template = str((config.get("tag") or {}).get("template", "V{version}"))
+
+    artifact: Path | None = None
+    record: dict[str, Any] | None = None
+    version = ""
+    tag = str(args.tag) if args.tag else ""
+    if tag:
+        record = _published_record(repo, tag, tag_template)
+        if record is None:
+            listed = release_asset_names(provider, repo, remote, tag, run.log)
+            detail = (
+                "cannot re-check " + tag + ": this clone has no run record for it under "
+                + str(repo / OUTPUT_REL) + ", so there is no recorded asset name or hash to "
+                "compare against. "
+                + (
+                    "The release lists: " + ", ".join(listed) + "."
+                    if listed
+                    else "The release could not be listed either - check the tag name."
+                )
+            )
+            run.step("closed-loop read-back", "fail", detail)
+            _save_outputs(run, {"tag": tag, "published": True, "runKind": "verify",
+                                "verifySource": "run record missing"})
+            print("")
+            print(detail)
+            return 1
+        asset_name = str(record["artifactName"])
+        expected_sha = str(record["sha256"])
+        version = str(record.get("version") or "")
+        commit = (
+            args.commit or str(record.get("commit") or "")
+            or resolve_tag_commit(repo, tag) or ""
+        )
+    else:
+        artifact, version = resolve_artifact(artifact_cfg, repo)
+        tag = _render(
+            tag_template,
+            {"version": version, "artifactName": artifact.name},
+        )
+        asset_name = artifact.name
+        expected_sha = sha256_file(artifact)
+        commit = args.commit or resolve_tag_commit(repo, tag) or ""
+
     verdict, detail, extra = _read_back(
-        run, provider, repo, remote, tag, commit, artifact, sha
+        run, provider, repo, remote, tag, commit,
+        asset_name=asset_name, expected_sha=expected_sha, local_artifact=artifact,
     )
     run.step("closed-loop read-back", "pass" if verdict == "pass" else "fail", detail)
+    urls = release_urls(provider, repo, remote, tag, asset_name)
     _save_outputs(run, {
-        "tag": tag, "version": version, "commit": commit, "artifact": str(artifact),
-        "artifactName": artifact.name, "sha256": sha, "builtAt": _now(),
-        "published": True, **extra,
+        "tag": tag, "version": version, "commit": commit,
+        "artifact": str(artifact) if artifact else str((record or {}).get("artifact") or ""),
+        "artifactName": asset_name, "sha256": expected_sha, "builtAt": _now(),
+        "published": True, "runKind": "verify",
+        "verifySource": str((record or {}).get("recordPath") or "local build tree"),
+        **urls, **extra,
     })
     print("")
     print(detail)
+    _print_release_urls(urls)
     return 0 if verdict == "pass" else 1
 
 
@@ -768,6 +935,12 @@ def build_parser() -> argparse.ArgumentParser:
     setup = sub.add_parser("setup", help="adopt the pipeline into a repository")
     setup.add_argument("--repo", default=".")
     setup.add_argument("--force", action="store_true", help="overwrite an existing config")
+    setup.add_argument(
+        "--console-lang",
+        default="en",
+        choices=("en", "zh"),
+        help="language of the .ci/release.bat console: en (ASCII, default) or zh (GBK)",
+    )
     setup.add_argument("--install-hook", action="store_true", help="install the pre-push hook")
     setup.set_defaults(func=cmd_setup)
 
@@ -798,6 +971,13 @@ def build_parser() -> argparse.ArgumentParser:
     uninstall = sub.add_parser("uninstall-hook", help="remove the pre-push hook")
     uninstall.add_argument("--repo", default=".")
     uninstall.set_defaults(func=cmd_uninstall_hook)
+
+    status = sub.add_parser(
+        "hook-status",
+        help="print installed / missing / foreign for the pre-push hook (a query)",
+    )
+    status.add_argument("--repo", default=".")
+    status.set_defaults(func=cmd_hook_status)
     return parser
 
 

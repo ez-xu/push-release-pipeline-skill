@@ -132,8 +132,14 @@ for artifacts that carry no version at all.
 For anything else, supply a command whose stdout is the version:
 
 ```json
-{ "command": ["python", "tools/read_version.py"] }
+{ "command": ["python", "{repo}/.ci/lib/<project>_project.py", "read-version"] }
 ```
+
+Keep that module in .ci/lib/, next to the vendored runtime, never loose at the .ci/
+root: setup's vendor_lib() copies its own modules and never clears the directory, so a
+project module placed there survives re-running setup, and a path rooted at {repo}
+keeps the committed config free of host paths. The build wrapper named by build.build
+belongs there too.
 
 The command receives no artifact path: {artifactPath} is not a token and is not expanded. The script locates the artifact itself — reading artifact.root and artifact.glob out of .ci/config.json is the portable way, since the same script must work in every clone — prints the version on stdout, and that version must equal the one in the file name or the cross-check refuses the release.
 ```

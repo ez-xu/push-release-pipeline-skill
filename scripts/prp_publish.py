@@ -223,13 +223,15 @@ def create_release(
     )
 
 
-def gitlab_project(remote_url_value: str) -> tuple[str, str] | None:
-    """Split a git remote URL into (web base, url-encoded project path).
+def web_base_and_path(remote_url_value: str) -> tuple[str, str] | None:
+    """Split a git remote URL into (https base, repository path).
 
     Handles the forms git actually stores: https://host/group/project.git,
     ssh://git@host/group/project.git and the scp-like git@host:group/project.git.
-    Returns None for anything that is not a hosted GitLab-style remote (for example
-    a local path), so the caller can leave the link untouched instead of guessing.
+    Returns None for anything that is not a hosted remote (for example a local path),
+    so callers leave their link untouched instead of inventing a host from it.
+
+    Shared by the GitLab and GitHub link builders so both accept the same forms.
     """
     value = (remote_url_value or "").strip()
     if not value:
@@ -253,7 +255,123 @@ def gitlab_project(remote_url_value: str) -> tuple[str, str] | None:
         path = path[:-4]
     if "/" not in path:
         return None
+    return base, path
+
+
+def gitlab_project(remote_url_value: str) -> tuple[str, str] | None:
+    """(web base, url-encoded project path) for a hosted remote, else None."""
+    split = web_base_and_path(remote_url_value)
+    if split is None:
+        return None
+    base, path = split
     return base, quote(path, safe="")
+
+
+def github_slug(remote_url_value: str) -> str | None:
+    """owner/repo when the remote is on github.com, else None."""
+    split = web_base_and_path(remote_url_value)
+    if split is None:
+        return None
+    base, path = split
+    host = base[len("https://"):].lower()
+    if host not in ("github.com", "www.github.com"):
+        return None
+    return path
+
+
+def release_urls(
+    provider: str,
+    repo: Path,
+    remote: str,
+    tag: str,
+    asset_name: str,
+) -> dict[str, str]:
+    """The two links worth handing to a human: the release page and the file itself.
+
+    Derived from the remote with no API call, so the identical pair can be printed for
+    a release that was just published and for one being re-verified later, and so the
+    links cost nothing on a run that already talked to the provider. An empty mapping
+    means this remote has no link shape we can build - the caller then prints nothing
+    rather than a URL that 404s.
+    """
+    url = remote_url(repo, remote)
+    quoted_tag = quote(tag, safe="")
+    quoted_asset = quote(asset_name, safe="/")
+    if provider == "gitlab":
+        # The browser route wants the real slashes: gitlab_project() returns the API
+        # form (percent-encoded project path) and is for the REST calls only.
+        split = web_base_and_path(url)
+        if split is None:
+            return {}
+        base, path = split
+        page = base + "/" + path + "/-/releases/" + quoted_tag
+        return {
+            "releaseUrl": page,
+            "assetUrl": page + "/downloads/" + quoted_asset,
+        }
+    if provider == "github":
+        slug = github_slug(url)
+        if slug is None:
+            return {}
+        page = "https://github.com/" + slug + "/releases/tag/" + quoted_tag
+        return {
+            "releaseUrl": page,
+            "assetUrl": (
+                "https://github.com/" + slug
+                + "/releases/download/" + quoted_tag + "/" + quoted_asset
+            ),
+        }
+    return {}
+
+
+def release_asset_names(
+    provider: str, repo: Path, remote: str, tag: str, log: list[str]
+) -> list[str]:
+    """Names of the assets attached to a published release, as the provider lists them.
+
+    A re-check of an older release has to name the asset that release actually holds: it may
+    have been published by another clone on another day, so the name cannot be taken from
+    whatever the local build tree happens to contain now. An empty list means the release
+    could not be read (unknown tag, no access, unparseable answer) - the caller says so
+    instead of inventing a name.
+    """
+    url = remote_url(repo, remote)
+    cli = require_cli(provider)
+    if provider == "gitlab":
+        project = gitlab_project(url)
+        if project is None:
+            return []
+        _, encoded = project
+        proc = run(
+            [cli, "api", "projects/" + encoded + "/releases/" + quote(tag, safe="")],
+            cwd=repo, timeout=300, env={"PRP_IN_PROGRESS": "1"},
+        )
+        if proc.returncode != 0:
+            if proc.stderr:
+                log.append("[assets] " + proc.stderr.strip()[:200])
+            return []
+        try:
+            data = json.loads(proc.stdout or "{}")
+        except ValueError:
+            return []
+        links = (data.get("assets") or {}).get("links") or []
+        return [str(link["name"]) for link in links if link.get("name")]
+    slug = github_slug(url)
+    if slug is None:
+        return []
+    proc = run(
+        [cli, "api", "repos/" + slug + "/releases/tags/" + quote(tag, safe="")],
+        cwd=repo, timeout=300, env={"PRP_IN_PROGRESS": "1"},
+    )
+    if proc.returncode != 0:
+        if proc.stderr:
+            log.append("[assets] " + proc.stderr.strip()[:200])
+        return []
+    try:
+        data = json.loads(proc.stdout or "{}")
+    except ValueError:
+        return []
+    return [str(asset["name"]) for asset in (data.get("assets") or []) if asset.get("name")]
 
 
 def repair_asset_link(

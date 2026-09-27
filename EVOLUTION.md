@@ -171,3 +171,267 @@ Regression test: `evals/corrections/correction-20260924-083000-a3b1d68a31.json` 
 
 Version recommendation: patch - correction from real use.
 
+## 2026-09-24T12:00:00Z - correction from use
+
+Change ID: `correction-20260924-200000-a1b2c3d4`
+
+Reported while using the skill, not caught by any automated check.
+
+> Project-specific pipeline code had nowhere to live, so it ended up as loose scripts at the .ci/ root. Put it in .ci/lib/ instead, next to the vendored runtime: vendor_lib() copies its own modules and never clears the directory, so a project module placed there survives re-running setup, while a file at the .ci/ root is neither protected nor obviously the project's. config.json then reaches it as {repo}/.ci/lib/<project>_project.py, which keeps the committed config free of host paths. The same change adds the double-clickable console at .ci/release.bat: setup writes it, it is ASCII and CRLF, and it resolves its interpreter from PATH at run time so the committed file works in every clone.
+
+Proposed skill edit: add the corrected behavior to `SKILL.md` -> `## Required behavior` (rule 6, where the project's own code goes).
+
+Regression test: `evals/corrections/correction-20260924-200000-a1b2c3d4.json` must keep this behavior in the skill.
+
+Version recommendation: minor - adds a file the skill writes and a rule about where project code lives.
+
+## 2026-09-24T12:05:00Z - correction from use
+
+Change ID: `correction-20260924-200000-b2c3d4e5`
+
+Reported while using the skill, not caught by any automated check.
+
+> A .bat menu has three failure modes that do not show up until someone double-clicks it. Capturing a quoted interpreter with for /f returns an empty string, because cmd strips the first and last quote of an inner command line that starts with a quote - the same line unquoted works, and a temp file works for both. The hook state must be compared case-insensitively, because the query prints lowercase and a menu comparing uppercase prints no state line at all. And empty input must not mean the default action: set /p can hand back several lines when stdin is redirected (a value with an embedded newline makes the next if a multi-line statement cmd rejects), an exhausted stdin would otherwise spin the menu forever, and a menu whose default is 'publish' would fire it on a stray Enter.
+
+Proposed skill edit: add the corrected behavior to `SKILL.md` -> `## Gotchas`.
+
+Regression test: `evals/corrections/correction-20260924-200000-b2c3d4e5.json` must keep this behavior in the skill.
+
+Version recommendation: minor - adds a user-facing entry point and the failure modes it must avoid.
+
+## 2026-09-27T10:05:00Z - correction from use
+
+Change ID: `correction-20260927-100500-c3d4e5f6`
+
+Reported while using the skill, not caught by any automated check.
+
+> A successful verify crashed while writing its own record. verify records a subset of what release records, but the run record renderer indexed project, tree, branch, size and versionSource directly, so the re-check died with KeyError: 'project' after the read-back had already run - and because the crash happened before the final print, the command returned a traceback instead of the result. Render a record from the fields the run actually produced, and say which are not recorded rather than assuming the release shape; a verification that succeeds must not fail while describing itself.
+
+Proposed skill edit: add the corrected behavior to `SKILL.md` -> `## Required behavior` (rule 8, a run describes itself with what it produced).
+
+Regression test: `evals/corrections/correction-20260927-100500-c3d4e5f6.json` must keep this behavior in the skill.
+
+Version recommendation: patch - correction from real use.
+
+## 2026-09-27T10:06:00Z - correction from use
+
+Change ID: `correction-20260927-100500-d4e5f6a7`
+
+Reported while using the skill, not caught by any automated check.
+
+> A release that does not hand over its own URL makes everyone reconstruct it by hand from the tag, and the reconstruction is easy to get wrong (the browser route wants real slashes while the API route wants the project path percent-encoded, so using the API form in a link produces a URL that cannot be clicked). Print the release page and the direct link to the published file at the end of both a real release and a verify, derive both from the remote without an API call so a re-check prints the same pair, record them in the run, and print nothing for a remote with no link shape rather than a URL that 404s.
+
+Proposed skill edit: add the corrected behavior to `SKILL.md` -> `## Handing over the link`.
+
+Regression test: `evals/corrections/correction-20260927-100500-d4e5f6a7.json` must keep this behavior in the skill.
+
+Version recommendation: minor - adds a user-facing output to release and verify.
+
+## 2026-09-27T11:00:00Z - correction from use
+
+Change ID: `correction-20260927-110000-e5f6a7b8`
+
+Reported while using the skill, not caught by any automated check.
+
+> setup ran from the vendored copy - which is exactly how a colleague re-runs it after cloning, and what the docs tell them to type - aborted with shutil.SameFileError: .ci/lib is both the source and the destination of the vendor step, so copying a module onto itself is the normal case there, not an error. The crash landed after the config step and before the console was written, so the run looked half-done for no reason. Treat 'already in place' as success, and let the console templates travel with the runtime, because setup looks for the template next to itself and a clone has no copy of the skill.
+
+Proposed skill edit: add the corrected behavior to `SKILL.md` -> `## Gotchas`.
+
+Regression test: `evals/corrections/correction-20260927-110000-e5f6a7b8.json` must keep this behavior in the skill.
+
+Version recommendation: patch - correction from real use.
+## 2026-09-27T02:36:13Z — run_evals --rollout FAILED
+
+- counts: passed=17, failed=30, errors=0, regressions=0, judge_failed=0
+- failing checks (raw):
+
+```json
+[
+  {
+    "case": "clean-release",
+    "criterion": "harness-ran",
+    "status": "fail"
+  },
+  {
+    "case": "clean-release",
+    "criterion": "closed-loop-consistent",
+    "status": "fail"
+  },
+  {
+    "case": "clean-release",
+    "criterion": "no-orphan-tag",
+    "status": "fail"
+  },
+  {
+    "case": "clean-release",
+    "criterion": "provenance-complete",
+    "status": "fail"
+  },
+  {
+    "case": "clean-release",
+    "criterion": "scenario-identified",
+    "status": "fail"
+  },
+  {
+    "case": "dirty-tree-refused",
+    "criterion": "harness-ran",
+    "status": "fail"
+  },
+  {
+    "case": "dirty-tree-refused",
+    "criterion": "closed-loop-consistent",
+    "status": "fail"
+  },
+  {
+    "case": "dirty-tree-refused",
+    "criterion": "no-orphan-tag",
+    "status": "fail"
+  },
+  {
+    "case": "dirty-tree-refused",
+    "criterion": "provenance-complete",
+    "status": "fail"
+  },
+  {
+    "case": "dirty-tree-refused",
+    "criterion": "scenario-identified",
+    "status": "fail"
+  },
+  {
+    "case": "version-collision-refused",
+    "criterion": "harness-ran",
+    "status": "fail"
+  },
+  {
+    "case": "version-collision-refused",
+    "criterion": "closed-loop-consistent",
+    "status": "fail"
+  },
+  {
+    "case": "version-collision-refused",
+    "criterion": "no-orphan-tag",
+    "status": "fail"
+  },
+  {
+    "case": "version-collision-refused",
+    "criterion": "provenance-complete",
+    "status": "fail"
+  },
+  {
+    "case": "version-collision-refused",
+    "criterion": "scenario-identified",
+    "status": "fail"
+  },
+  {
+    "case": "tracked-file-touched-refused",
+    "criterion": "harness-ran",
+    "status": "fail"
+  },
+  {
+    "case": "tracked-file-touched-refused",
+    "criterion": "closed-loop-consistent",
+    "status": "fail"
+  },
+  {
+    "case": "tracked-file-touched-refused",
+    "criterion": "no-orphan-tag",
+    "status": "fail"
+  },
+  {
+    "case": "tracked-file-touched-refused",
+    "criterion": "provenance-complete",
+    "status": "fail"
+  },
+  {
+    "case": "tracked-file-touched-refused",
+    "criterion": "scenario-identified",
+    "status": "fail"
+  },
+  {
+    "case": "host-path-config-refused",
+    "criterion": "harness-ran",
+    "status": "fail"
+  },
+  {
+    "case": "host-path-config-refused",
+    "criterion": "closed-loop-consistent",
+    "status": "fail"
+  },
+  {
+    "case": "host-path-config-refused",
+    "criterion": "no-orphan-tag",
+    "status": "fail"
+  },
+  {
+    "case": "host-path-config-refused",
+    "criterion": "provenance-complete",
+    "status": "fail"
+  },
+  {
+    "case": "host-path-config-refused",
+    "criterion": "scenario-identified",
+    "status": "fail"
+  },
+  {
+    "case": "corrupted-upload-rolled-back",
+    "criterion": "harness-ran",
+    "status": "fail"
+  },
+  {
+    "case": "corrupted-upload-rolled-back",
+    "criterion": "closed-loop-consistent",
+    "status": "fail"
+  },
+  {
+    "case": "corrupted-upload-rolled-back",
+    "criterion": "no-orphan-tag",
+    "status": "fail"
+  },
+  {
+    "case": "corrupted-upload-rolled-back",
+    "criterion": "provenance-complete",
+    "status": "fail"
+  },
+  {
+    "case": "corrupted-upload-rolled-back",
+    "criterion": "scenario-identified",
+    "status": "fail"
+  }
+]
+```
+
+## 2026-09-27T02:37:20Z — run_evals --rollout FAILED
+
+- counts: passed=17, failed=5, errors=0, regressions=0, judge_failed=0
+- failing checks (raw):
+
+```json
+[
+  {
+    "case": "clean-release",
+    "criterion": "harness-ran",
+    "status": "fail"
+  },
+  {
+    "case": "clean-release",
+    "criterion": "closed-loop-consistent",
+    "status": "fail"
+  },
+  {
+    "case": "clean-release",
+    "criterion": "no-orphan-tag",
+    "status": "fail"
+  },
+  {
+    "case": "clean-release",
+    "criterion": "provenance-complete",
+    "status": "fail"
+  },
+  {
+    "case": "clean-release",
+    "criterion": "scenario-identified",
+    "status": "fail"
+  }
+]
+```
+

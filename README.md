@@ -34,7 +34,16 @@ python3 scripts/run_pipeline.py setup --repo /path/to/repo --install-hook
 ```
 
 Then every push to the release branch builds, verifies, tags, publishes, and
-re-downloads the published asset to confirm it matches the build.
+re-downloads the published asset to confirm it matches the build. A successful
+release - and a later `verify` - prints the release page and the direct link to the
+published file.
+
+The hook is off until someone installs it. To publish by hand instead, double-click
+the console setup writes at `.ci/release.bat`: it opens a menu (check, release, dry
+run, verify, and turning the push hook on or off) and needs no command line. It is
+written in English by default; add `--console-lang zh` to setup for a Chinese copy.
+Both consoles are checked in under `templates/` and copied byte for byte, so what a
+repository gets is exactly the file reviewed here.
 
 ## Verification
 
