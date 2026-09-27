@@ -417,7 +417,8 @@ def cmd_check(args: argparse.Namespace) -> int:
         return 0
     print("repo:            " + report["repo"])
     print("branch:          " + str(report["branch"]) + "  (release branch: "
-          + str(report["releaseBranch"]) + ")")
+          + str(report["releaseBranch"])
+          + (" - any branch may publish" if str(report["releaseBranch"]) == "*" else "") + ")")
     print("remote:          " + report["remoteUrl"] + "  -> " + provider)
     print("release cli:     " + str(report.get("releaseCli"))
           + "  authenticated: " + str(report.get("releaseCliAuthenticated")))
@@ -468,10 +469,14 @@ def cmd_release(args: argparse.Namespace) -> int:
 
     release_branch = str((config.get("project") or {}).get("releaseBranch"))
     branch = branch_name(repo)
-    if branch != release_branch and not args.any_branch:
+    # "*" means every branch may publish. The version carries the branch name, so releases
+    # from different branches get different tags and cannot collide; a repository that wants
+    # one branch only names it here.
+    if release_branch != "*" and branch != release_branch and not args.any_branch:
         raise Refused(
             "on branch " + repr(branch) + " but the release branch is " + repr(release_branch)
-            + "; pass --any-branch to release from here anyway"
+            + "; pass --any-branch to release from here anyway, or set "
+            "project.releaseBranch to \"*\" to allow every branch"
         )
     run.step("preconditions", "pass", branch + " -> " + provider + " via " + cli_for(provider))
 
